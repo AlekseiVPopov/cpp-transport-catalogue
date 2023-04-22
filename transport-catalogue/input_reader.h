@@ -12,9 +12,16 @@
 
 
 #include "geo.h"
+#include "transport_catalogue.h"
 
 namespace transport_catalogue {
-    class TransportCatalogue;
+
+    struct InputCommand {
+        std::string command;
+        std::string first_parameter;
+        std::string second_parameter;
+    };
+
 
     int ReadLineWithNumber(std::istream &is);
 
@@ -36,26 +43,6 @@ namespace transport_catalogue {
 
     std::vector<std::string_view> SplitStrToStrV(std::string_view s, char split_char, int piece_num = 0);
 
-    struct InputBusInfo {
-        std::string bus_name;
-        std::deque<std::string_view> stops;
-    };
-
-    struct InputStopInfo {
-        std::string stop_name;
-        geo::Coordinates coordinates;
-    };
-
-    struct InputCommand {
-        std::string command;
-        std::string first_parameter;
-        std::string second_parameter;
-    };
-
-    struct InputDistanceInfo {
-        std::string_view stop_name;
-        std::unordered_map<std::string_view, size_t> distance_to_neighbour;
-    };
 
 
     class InputReader {

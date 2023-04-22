@@ -12,7 +12,6 @@
 
 
 #include "geo.h"
-#include "input_reader.h"
 
 namespace transport_catalogue {
 
@@ -41,6 +40,22 @@ namespace transport_catalogue {
     struct StopInfoResponse {
         std::string_view stop_name;
         std::vector<Bus *> buses;
+    };
+
+    struct InputBusInfo {
+        std::string bus_name;
+        std::deque<std::string_view> stops;
+    };
+
+    struct InputStopInfo {
+        std::string stop_name;
+        geo::Coordinates coordinates;
+    };
+
+
+    struct InputDistanceInfo {
+        std::string_view stop_name;
+        std::unordered_map<std::string_view, size_t> distance_to_neighbour;
     };
 
 
