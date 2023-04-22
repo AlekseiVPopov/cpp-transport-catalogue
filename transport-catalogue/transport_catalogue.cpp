@@ -2,17 +2,17 @@
 
 namespace transport_catalogue {
 
-    void TransportCatalogue::AddStop(InputReader::InputStopInfo *stop) {
+    void TransportCatalogue::AddStop(const InputStopInfo *stop) {
         using namespace std::string_literals;
         if (stop == nullptr) {
             throw std::runtime_error("Try to add stop with nullptr"s);
         }
-        auto &new_stop = stops_.emplace_back(Stop{std::move(stop->stop_name), stop->coordinates});
+        auto &new_stop = stops_.emplace_back(Stop{stop->stop_name, stop->coordinates});
         stop_name_to_stop_[new_stop.stop_name] = &new_stop;
     }
 
 
-    Stop *TransportCatalogue::FindStop(std::string_view stop_name) const {
+    const Stop *TransportCatalogue::FindStop(std::string_view stop_name) const {
         if (stop_name_to_stop_.count(stop_name)) {
             return const_cast<Stop *>(stop_name_to_stop_.at(stop_name));
         }
@@ -27,7 +27,7 @@ namespace transport_catalogue {
         return uniq_stop_names.size();
     }
 
-    void TransportCatalogue::AddBus(InputReader::InputBusInfo *bus) {
+    void TransportCatalogue::AddBus(const InputBusInfo *bus) {
         using namespace std::string_literals;
 
         if (bus == nullptr) {
@@ -42,7 +42,7 @@ namespace transport_catalogue {
                 throw std::runtime_error("No stop "s + std::string(stop) + " in DB for bus "s + bus->bus_name);
             }
         }
-        auto &new_bus = buses_.emplace_back(Bus{std::move(bus->bus_name), std::move(stops)});
+        auto &new_bus = buses_.emplace_back(Bus{bus->bus_name, std::move(stops)});
         new_bus.stops_num = new_bus.stops.size();
         new_bus.uniq_stops_num = CountUniqStops(&new_bus);
         bus_name_to_bus_[new_bus.bus_name] = &new_bus;
@@ -55,7 +55,7 @@ namespace transport_catalogue {
     }
 
 
-    Bus *TransportCatalogue::FindBus(std::string_view bus_name) const {
+    const Bus *TransportCatalogue::FindBus(std::string_view bus_name) const {
         if (bus_name_to_bus_.count(bus_name)) {
             return const_cast<Bus *>(bus_name_to_bus_.at(bus_name));
         }
@@ -66,7 +66,7 @@ namespace transport_catalogue {
         return geo::ComputeDistance(stop1->coordinates, stop2->coordinates);
     }
 
-    size_t TransportCatalogue::GetStopRealDistance(Stop *stop1, Stop *stop2) const {
+    size_t TransportCatalogue::GetStopRealDistance(const Stop *stop1, const Stop *stop2) const {
         if (auto direct = neighbour_distance_.find(std::make_pair(stop1, stop2)); direct == neighbour_distance_.end()) {
             if (auto reverse = neighbour_distance_.find(std::make_pair(stop2, stop1)); reverse ==
                                                                                        neighbour_distance_.end()) {
@@ -80,7 +80,7 @@ namespace transport_catalogue {
     }
 
 
-    BusInfoResponse TransportCatalogue::GetBusInfo(std::string_view bus_name) const {
+    std::optional<BusInfoResponse> TransportCatalogue::GetBusInfo(std::string_view bus_name) const {
         BusInfoResponse res;
         res.bus_name = bus_name;
 
@@ -103,18 +103,17 @@ namespace transport_catalogue {
 
         res.stops_num = bus->stops_num;
         res.uniq_stops_num = bus->uniq_stops_num;
-        res.present = true;
         return res;
     }
 
-    StopInfoResponse TransportCatalogue::GetStopInfo(std::string_view stop_name) const {
+    std::optional<StopInfoResponse> TransportCatalogue::GetStopInfo(std::string_view stop_name) const {
         auto stop_it = stop_name_to_stop_.find(stop_name);
         if (stop_it == stop_name_to_stop_.end()) {
-            return StopInfoResponse{stop_name, {}, false};
+            return {};
         }
 
         if (stop_to_buses_.find(stop_it->second) == stop_to_buses_.end()) {
-            return {stop_name, {}, true};
+            return StopInfoResponse{stop_name, {}};
         }
 
         auto buses = stop_to_buses_.at(stop_it->second);
@@ -124,10 +123,10 @@ namespace transport_catalogue {
             return lhs->bus_name < rhs->bus_name;
         });
 
-        return {stop_name, bus_p_vec, true};
+        return StopInfoResponse{stop_name, bus_p_vec};
     }
 
-    void TransportCatalogue::AddRealDistance(InputReader::InputDistanceInfo *distance_info) {
+    void TransportCatalogue::AddRealDistance(const InputDistanceInfo *distance_info) {
         using namespace std::string_literals;
         if (distance_info == nullptr) {
             throw std::runtime_error("Try to add stop with nullptr"s);

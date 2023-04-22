@@ -88,7 +88,7 @@ namespace transport_catalogue {
         return result;
     }
 
-    InputReader::InputCommand InputReader::ParseInputCommand(const std::string &str) {
+    InputCommand InputReader::ParseInputCommand(const std::string &str) {
         InputCommand result;
         if (str.empty()) {
             return result;
@@ -112,7 +112,7 @@ namespace transport_catalogue {
     }
 
 
-    InputReader::InputStopInfo *InputReader::ParseStopInfo(const InputCommand &parsed_command) {
+    InputStopInfo *InputReader::ParseStopInfo(const InputCommand &parsed_command) {
 
         auto parsed_parameters = SplitStrToStrV(parsed_command.second_parameter, ',');
 
@@ -137,7 +137,7 @@ namespace transport_catalogue {
         return &new_stop;
     }
 
-    InputReader::InputBusInfo *InputReader::ParseBusInfo(const InputCommand &parsed_command) {
+    InputBusInfo *InputReader::ParseBusInfo(const InputCommand &parsed_command) {
         using namespace std::string_literals;
 
 

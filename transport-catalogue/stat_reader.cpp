@@ -33,15 +33,15 @@ namespace transport_catalogue {
             if (r.command == "Bus"s) {
                 const auto bus_info = tc.GetBusInfo(r.request);
                 //Bus 256: 6 stops on route, 5 unique stops, 4371.02 route length
-                if (bus_info.present) {
+                if (bus_info) {
 
                     std::cout << r.command << " "s <<
                               r.request << ": "s <<
-                              bus_info.stops_num << " stops on route, "s <<
-                              bus_info.uniq_stops_num << " unique stops, "s <<
+                              bus_info.value().stops_num << " stops on route, "s <<
+                              bus_info.value().uniq_stops_num << " unique stops, "s <<
                               std::setprecision(6) <<
-                              bus_info.real_length << " route length, "s <<
-                              bus_info.curvature << " curvature"s <<
+                              bus_info.value().real_length << " route length, "s <<
+                              bus_info.value().curvature << " curvature"s <<
                               std::endl;
                 } else {
                     std::cout << r.command << " "s << r.request << ": not found"s << std::endl;
@@ -49,11 +49,11 @@ namespace transport_catalogue {
             } else if (r.command == "Stop") {
                 const auto stop_info = tc.GetStopInfo(r.request);
 
-                if (stop_info.present) {
+                if (stop_info) {
                     std::cout << r.command << " "s << r.request;
-                    if (!stop_info.buses.empty()) {
+                    if (!stop_info.value().buses.empty()) {
                         std::cout << ": buses "s;
-                        for (auto bus: stop_info.buses) {
+                        for (auto bus: stop_info.value().buses) {
                             std::cout << bus->bus_name << " "s;
                         }
                         std::cout << std::endl;
