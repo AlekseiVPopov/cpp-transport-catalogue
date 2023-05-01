@@ -19,12 +19,12 @@ namespace transport_catalogue {
         return nullptr;
     }
 
-    size_t TransportCatalogue::CountUniqStops(Bus *bus) {
+    int TransportCatalogue::CountUniqStops(Bus *bus) {
         std::set<std::string_view> uniq_stop_names;
         for (auto stop: bus->stops) {
             uniq_stop_names.insert(stop->stop_name);
         }
-        return uniq_stop_names.size();
+        return static_cast<int>(uniq_stop_names.size());
     }
 
     void TransportCatalogue::AddBus(const InputBusInfo *bus) {
@@ -34,16 +34,27 @@ namespace transport_catalogue {
             throw std::runtime_error("Try to add bus with nullptr"s);
         }
         std::vector<Stop *> stops;
+        auto stops_num = bus->is_circled ? bus->stops.size() : bus->stops.size() * 2 - 1;
+        stops.reserve(stops_num);
 
-        for (auto stop: bus->stops) {
+        for (const auto &stop: bus->stops) {
             if (stop_name_to_stop_.find(stop) != stop_name_to_stop_.end()) {
                 stops.push_back(stop_name_to_stop_.at(stop));
             } else {
-                throw std::runtime_error("No stop "s + std::string(stop) + " in DB for bus "s + bus->bus_name);
+                throw std::runtime_error("No stop "s + stop + " in DB for bus "s + bus->bus_name);
             }
         }
-        auto &new_bus = buses_.emplace_back(Bus{bus->bus_name, std::move(stops)});
-        new_bus.stops_num = new_bus.stops.size();
+
+        if (!bus->is_circled) {
+            std::copy(next(stops.rbegin()), stops.rend(), std::back_inserter(stops));
+        }
+
+        if (*stops.begin() != *stops.rbegin()) {
+            throw std::runtime_error("Bus "s + bus->bus_name + " is not closed"s);
+        }
+
+        auto &new_bus = buses_.emplace_back(std::move(Bus{bus->bus_name, std::move(stops), 0, 0, bus->is_circled}));
+        new_bus.stops_num = static_cast<int>(new_bus.stops.size());
         new_bus.uniq_stops_num = CountUniqStops(&new_bus);
         bus_name_to_bus_[new_bus.bus_name] = &new_bus;
 
@@ -66,7 +77,7 @@ namespace transport_catalogue {
         return geo::ComputeDistance(stop1->coordinates, stop2->coordinates);
     }
 
-    size_t TransportCatalogue::GetStopRealDistance(const Stop *stop1, const Stop *stop2) const {
+    int TransportCatalogue::GetStopRealDistance(const Stop *stop1, const Stop *stop2) const {
         if (auto direct = neighbour_distance_.find(std::make_pair(stop1, stop2)); direct == neighbour_distance_.end()) {
             if (auto reverse = neighbour_distance_.find(std::make_pair(stop2, stop1)); reverse ==
                                                                                        neighbour_distance_.end()) {
@@ -86,7 +97,7 @@ namespace transport_catalogue {
 
 
         if (bus_name_to_bus_.find(bus_name) == bus_name_to_bus_.end()) {
-            return res;
+            return {};
         }
         auto bus = bus_name_to_bus_.at(bus_name);
 
@@ -137,14 +148,46 @@ namespace transport_catalogue {
             throw std::runtime_error("Stop "s + std::string(distance_info->stop_name) + " not found to add distance"s);
         }
 
-        for (auto [stop_name, distance]: distance_info->distance_to_neighbour) {
+        for (auto &[stop_name, distance]: distance_info->distance_to_neighbour) {
             auto dest_stop_p = FindStop(stop_name);
             if (!dest_stop_p) {
                 throw std::runtime_error(
-                        "Stop "s + std::string(distance_info->stop_name) + " not found to add neighbour distance"s);
+                        "Stop "s + std::string(stop_name) + " not found to add neighbour distance for "s +
+                        std::string(distance_info->stop_name));
             }
             auto p = std::make_pair(base_stop_p, dest_stop_p);
             neighbour_distance_[p] = distance;
         }
+    }
+
+    std::vector<const Bus *> TransportCatalogue::GetAllBuses() {
+        std::vector<const Bus *> res;
+        res.reserve(buses_.size());
+        for (const auto &bus: buses_) {
+            res.emplace_back(&bus);
+        }
+
+//        std::sort(res.begin(), res.end(), [](const auto &lhs, const auto &rhs) {
+//            return lhs->bus_name < rhs->bus_name;
+//        });
+
+        return res;
+    }
+
+    std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses() {
+        std::vector<const Stop *> res;
+        res.reserve(stops_.size());
+
+        for (auto &stop: stops_) {
+            if (stop_to_buses_.find(&stop) != stop_to_buses_.end()) {
+                res.emplace_back(&stop);
+            }
+        }
+
+        std::sort(res.begin(), res.end(), [](const auto &lhs, const auto &rhs) {
+            return lhs->stop_name < rhs->stop_name;
+        });
+
+        return res;
     }
 }

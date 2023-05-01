@@ -1,22 +1,76 @@
-#include "input_reader.h"
 #include "transport_catalogue.h"
-#include "stat_reader.h"
+#include "json_reader.h"
+#include "map_renderer.h"
+
 
 int main() {
 
     using namespace transport_catalogue;
+    using namespace json_reader;
+    using namespace json;
+    using namespace renderer;
+
+//    const double WIDTH = 600.0;
+//    const double HEIGHT = 400.0;
+//    const double PADDING = 50.0;
+//
+//    // Точки, подлежащие проецированию
+//    std::vector<geo::Coordinates> geo_coords = {
+//            {43.587795, 39.716901}, {43.581969, 39.719848}, {43.598701, 39.730623},
+//            {43.585586, 39.733879}, {43.590317, 39.746833}
+//    };
+//
+//    // Создаём проектор сферических координат на карту
+//    const SphereProjector proj{
+//            geo_coords.begin(), geo_coords.end(), WIDTH, HEIGHT, PADDING
+//    };
+//
+//    // Проецируем и выводим координаты
+//    for (const auto geo_coord: geo_coords) {
+//        const svg::Point screen_coord = proj(geo_coord);
+//        std::cout << '(' << geo_coord.lat << ", "sv << geo_coord.lng << ") -> "sv;
+//        std::cout << '(' << screen_coord.x << ", "sv << screen_coord.y << ')' << std::endl;
+//    }
+
+
 
     TransportCatalogue tc;
+    svg::Document doc;
+    MapRenderer mr(doc);
+
+    RequestHandler rh(tc, mr);
+    //RequestHandler rh(tc);
 
 
-    InputReader input_reader(std::cin);
-    input_reader.ParseRequests();
-    input_reader.UpdateTcData(tc);
+
+    auto input_json = LoadJSONStream(std::cin);
+    PushInputJsonToRH(input_json, rh);
+
+    rh.ParseBaseRequests();
+
+    rh.PushBaseRequest();
+    std::cout << rh.PushStatRequests();
+
+    //rh.GenerateMapToSvg();
 
 
-    StatReader stat_reader(std::cin);
-    stat_reader.ParseRequests();
-    stat_reader.Output(tc);
+
+//    auto input_json = LoadJSONStream(std::cin).GetRoot().AsMap();
+//    auto s = Print(input_json);
+//
+//    std::cout << s << std::endl;
+
+//    TransportCatalogue tc;
+//
+//
+//    InputReader input_reader(std::cin);
+//    input_reader.ParseBaseRequests();
+//    input_reader.UpdateTcData(tc);
+//
+//
+//    StatReader stat_reader(std::cin);
+//    stat_reader.ParseBaseRequests();
+//    stat_reader.Output(tc);
 
 //
 //    Stop stop1{"Tolstopaltsevo"s, 55.611087, 37.208290};
