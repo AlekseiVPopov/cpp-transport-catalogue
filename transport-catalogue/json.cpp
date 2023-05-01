@@ -1,57 +1,80 @@
 #include "json.h"
 
+#include <iterator>
 
 namespace json {
 
-    using namespace std;
-    using namespace std::string_view_literals;
-
     namespace {
+        using namespace std::literals;
 
-        using Number = std::variant<int, double>;
+        Node LoadNode(std::istream& input);
+        Node LoadString(std::istream& input);
 
-        Node LoadNode(istream &input);
-
-        Node LoadNull(istream &input) {
-
-            string value;
-
+        std::string LoadLiteral(std::istream& input) {
+            std::string s;
             while (std::isalpha(input.peek())) {
-                value.push_back(static_cast<char>(input.get()));
+                s.push_back(static_cast<char>(input.get()));
             }
-
-            if (value == "null"s) return nullptr;
-            throw ParsingError("Null parsing error");
+            return s;
         }
 
+        Node LoadArray(std::istream& input) {
+            std::vector<Node> result;
 
-// Считывает содержимое строкового литерала JSON-документа
-// Функцию следует использовать после считывания открывающего символа ":
-        std::string LoadString(std::istream &input) {
-            using namespace std::literals;
+            for (char c; input >> c && c != ']';) {
+                if (c != ',') {
+                    input.putback(c);
+                }
+                result.push_back(LoadNode(input));
+            }
+            if (!input) {
+                throw ParsingError("Array parsing error"s);
+            }
+            return Node(std::move(result));
+        }
 
+        Node LoadDict(std::istream& input) {
+            Dict dict;
+
+            for (char c; input >> c && c != '}';) {
+                if (c == '"') {
+                    std::string key = LoadString(input).AsString();
+                    if (input >> c && c == ':') {
+                        if (dict.find(key) != dict.end()) {
+                            throw ParsingError("Duplicate key '"s + key + "' have been found");
+                        }
+                        dict.emplace(std::move(key), LoadNode(input));
+                    } else {
+                        throw ParsingError(": is expected but '"s + c + "' has been found"s);
+                    }
+                } else if (c != ',') {
+                    throw ParsingError(R"(',' is expected but ')"s + c + "' has been found"s);
+                }
+            }
+            if (!input) {
+                throw ParsingError("Dictionary parsing error"s);
+            }
+            return Node(std::move(dict));
+        }
+
+        Node LoadString(std::istream& input) {
             auto it = std::istreambuf_iterator<char>(input);
             auto end = std::istreambuf_iterator<char>();
             std::string s;
             while (true) {
                 if (it == end) {
-                    // Поток закончился до того, как встретили закрывающую кавычку?
                     throw ParsingError("String parsing error");
                 }
                 const char ch = *it;
                 if (ch == '"') {
-                    // Встретили закрывающую кавычку
                     ++it;
                     break;
                 } else if (ch == '\\') {
-                    // Встретили начало escape-последовательности
                     ++it;
                     if (it == end) {
-                        // Поток завершился сразу после символа обратной косой черты
                         throw ParsingError("String parsing error");
                     }
                     const char escaped_char = *(it);
-                    // Обрабатываем одну из последовательностей: \\, \n, \t, \r, \"
                     switch (escaped_char) {
                         case 'n':
                             s.push_back('\n');
@@ -69,25 +92,39 @@ namespace json {
                             s.push_back('\\');
                             break;
                         default:
-                            // Встретили неизвестную escape-последовательность
                             throw ParsingError("Unrecognized escape sequence \\"s + escaped_char);
                     }
                 } else if (ch == '\n' || ch == '\r') {
-                    // Строковый литерал внутри- JSON не может прерываться символами \r или \n
                     throw ParsingError("Unexpected end of line"s);
                 } else {
-                    // Просто считываем очередной символ и помещаем его в результирующую строку
                     s.push_back(ch);
                 }
                 ++it;
             }
 
-            return s;
+            return Node(std::move(s));
         }
 
-        Node LoadNumber(std::istream &input) {
-            using namespace std::literals;
+        Node LoadBool(std::istream& input) {
+            const auto s = LoadLiteral(input);
+            if (s == "true"sv) {
+                return Node{true};
+            } else if (s == "false"sv) {
+                return Node{false};
+            } else {
+                throw ParsingError("Failed to parse '"s + s + "' as bool"s);
+            }
+        }
 
+        Node LoadNull(std::istream& input) {
+            if (auto literal = LoadLiteral(input); literal == "null"sv) {
+                return Node{nullptr};
+            } else {
+                throw ParsingError("Failed to parse '"s + literal + "' as null"s);
+            }
+        }
+
+        Node LoadNumber(std::istream& input) {
             std::string parsed_num;
 
             // Считывает в parsed_num очередной символ из input
@@ -143,7 +180,7 @@ namespace json {
                     try {
                         return std::stoi(parsed_num);
                     } catch (...) {
-                        // В случае неудачи, например, при переполнении,
+                        // В случае неудачи, например, при переполнении
                         // код ниже попробует преобразовать строку в double
                     }
                 }
@@ -153,250 +190,162 @@ namespace json {
             }
         }
 
-        Node LoadBool(istream &input) {
-            std::string value;
-
-            while (std::isalpha(input.peek())) {
-                value.push_back(static_cast<char>(input.get()));
-            }
-
-
-            if (value == "true") return true;
-            if (value == "false") return false;
-
-            throw ParsingError("Bool parsing error");
-        }
-
-        Node LoadArray(istream &input) {
-            Array result;
+        Node LoadNode(std::istream& input) {
             char c;
-            input >> c;
-
-            if (input.eof()) {
-                throw ParsingError("Array parsing error"s);
+            if (!(input >> c)) {
+                throw ParsingError("Unexpected EOF"s);
             }
-
-            for (; !input.eof() && c != ']'; input >> c) {
-                if (c != ',') {
+            switch (c) {
+                case '[':
+                    return LoadArray(input);
+                case '{':
+                    return LoadDict(input);
+                case '"':
+                    return LoadString(input);
+                case 't':
+                    // Атрибут [[fallthrough]] (провалиться) ничего не делает, и является
+                    // подсказкой компилятору и человеку, что здесь программист явно задумывал
+                    // разрешить переход к инструкции следующей ветки case, а не случайно забыл
+                    // написать break, return или throw.
+                    // В данном случае, встретив t или f, переходим к попытке парсинга
+                    // литералов true либо false
+                    [[fallthrough]];
+                case 'f':
                     input.putback(c);
-                }
-                result.push_back(LoadNode(input));
+                    return LoadBool(input);
+                case 'n':
+                    input.putback(c);
+                    return LoadNull(input);
+                default:
+                    input.putback(c);
+                    return LoadNumber(input);
             }
-            return {std::move(result)};
         }
 
-        Node LoadDict(istream &input) {
-            Dict result;
-            char c;
-            input >> c;
+        struct PrintContext {
+            std::ostream& out;
+            int indent_step = 4;
+            int indent = 0;
 
-            if (input.eof()) {
-                throw ParsingError("Dict parsing error"s);
-            }
-
-
-            for (; !input.eof() && c != '}'; input >> c) {
-                if (c == ',') {
-                    input >> c;
+            void PrintIndent() const {
+                for (int i = 0; i < indent; ++i) {
+                    out.put(' ');
                 }
-
-                string key = LoadString(input);
-                input >> c;
-                result.insert({std::move(key), LoadNode(input)});
             }
 
-            return {std::move(result)};
+            PrintContext Indented() const {
+                return {out, indent_step, indent_step + indent};
+            }
+        };
+
+        void PrintNode(const Node& value, const PrintContext& ctx);
+
+        template <typename Value>
+        void PrintValue(const Value& value, const PrintContext& ctx) {
+            ctx.out << value;
         }
 
-        Node LoadNode(istream &input) {
-            char c;
-            input >> c;
-
-            if (c == '[') {
-                return LoadArray(input);
-            } else if (c == '{') {
-                return LoadDict(input);
-            } else if (c == '"') {
-                return LoadString(input);
-            } else if (c == 'n') {
-                input.putback(c);
-                return LoadNull(input);
-            } else if (c == 't' || c == 'f') {
-                input.putback(c);
-                return LoadBool(input);
-            } else {
-                input.putback(c);
-                return LoadNumber(input);
+        void PrintString(const std::string& value, std::ostream& out) {
+            out.put('"');
+            for (const char c : value) {
+                switch (c) {
+                    case '\r':
+                        out << "\\r"sv;
+                        break;
+                    case '\n':
+                        out << "\\n"sv;
+                        break;
+                    case '"':
+                        // Символы " и \ выводятся как \" или \\, соответственно
+                        [[fallthrough]];
+                    case '\\':
+                        out.put('\\');
+                        [[fallthrough]];
+                    default:
+                        out.put(c);
+                        break;
+                }
             }
+            out.put('"');
+        }
+
+        template <>
+        void PrintValue<std::string>(const std::string& value, const PrintContext& ctx) {
+            PrintString(value, ctx.out);
+        }
+
+        template <>
+        void PrintValue<std::nullptr_t>(const std::nullptr_t&, const PrintContext& ctx) {
+            ctx.out << "null"sv;
+        }
+
+// В специализаци шаблона PrintValue для типа bool параметр value передаётся
+// по константной ссылке, как и в основном шаблоне.
+// В качестве альтернативы можно использовать перегрузку:
+// void PrintValue(bool value, const PrintContext& ctx);
+        template <>
+        void PrintValue<bool>(const bool& value, const PrintContext& ctx) {
+            ctx.out << (value ? "true"sv : "false"sv);
+        }
+
+        template <>
+        void PrintValue<Array>(const Array& nodes, const PrintContext& ctx) {
+            std::ostream& out = ctx.out;
+            out << "[\n"sv;
+            bool first = true;
+            auto inner_ctx = ctx.Indented();
+            for (const Node& node : nodes) {
+                if (first) {
+                    first = false;
+                } else {
+                    out << ",\n"sv;
+                }
+                inner_ctx.PrintIndent();
+                PrintNode(node, inner_ctx);
+            }
+            out.put('\n');
+            ctx.PrintIndent();
+            out.put(']');
+        }
+
+        template <>
+        void PrintValue<Dict>(const Dict& nodes, const PrintContext& ctx) {
+            std::ostream& out = ctx.out;
+            out << "{\n"sv;
+            bool first = true;
+            auto inner_ctx = ctx.Indented();
+            for (const auto& [key, node] : nodes) {
+                if (first) {
+                    first = false;
+                } else {
+                    out << ",\n"sv;
+                }
+                inner_ctx.PrintIndent();
+                PrintString(key, ctx.out);
+                out << ": "sv;
+                PrintNode(node, inner_ctx);
+            }
+            out.put('\n');
+            ctx.PrintIndent();
+            out.put('}');
+        }
+
+        void PrintNode(const Node& node, const PrintContext& ctx) {
+            std::visit(
+                    [&ctx](const auto& value) {
+                        PrintValue(value, ctx);
+                    },
+                    node.GetValue());
         }
 
     }  // namespace
 
-    bool Node::IsInt() const {
-        return holds_alternative<int>(value_);
-    }
-
-    bool Node::IsDouble() const {
-        return holds_alternative<double>(value_) || holds_alternative<int>(value_);
-    }
-
-    bool Node::IsPureDouble() const {
-        return holds_alternative<double>(value_);
-    }
-
-    bool Node::IsBool() const {
-        return holds_alternative<bool>(value_);
-    }
-
-    bool Node::IsString() const {
-        return holds_alternative<std::string>(value_);
-    }
-
-    bool Node::IsNull() const {
-        return holds_alternative<std::nullptr_t>(value_);
-    }
-
-    bool Node::IsArray() const {
-        return holds_alternative<Array>(value_);
-    }
-
-    bool Node::IsMap() const {
-        return holds_alternative<Dict>(value_);
-    }
-
-    int Node::AsInt() const {
-        if (!IsInt()) throw std::logic_error("Type mismatch - not an int");
-        return std::get<int>(value_);
-    }
-
-    bool Node::AsBool() const {
-        if (!IsBool()) throw std::logic_error("Type mismatch - not a bool");
-        return std::get<bool>(value_);
-    }
-
-    double Node::AsDouble() const {
-        if (!IsDouble()) throw std::logic_error("Type mismatch - neither double nor int");
-        if (IsInt()) return static_cast<double>(std::get<int>(value_));
-        return std::get<double>(value_);
-    }
-
-    const std::string &Node::AsString() const {
-        if (!IsString()) throw std::logic_error("Type mismatch - not a string");
-        return std::get<std::string>(value_);
-    }
-
-    const Array &Node::AsArray() const {
-        if (!IsArray()) throw std::logic_error("Type mismatch - not an array");
-        return std::get<Array>(value_);
-    }
-
-    const Dict &Node::AsMap() const {
-        if (!IsMap()) throw std::logic_error("Type mismatch - not a map");
-        return std::get<Dict>(value_);
-    }
-
-    const Node::Value &Node::GetValue() const {
-        return value_;
-    }
-
-    bool Node::operator==(const Node &rhs) const {
-        return value_ == rhs.value_;
-    }
-
-    bool Node::operator!=(const Node &rhs) const {
-        return !(value_ == rhs.value_);
-    }
-
-
-    Document::Document(Node root)
-            : root_(std::move(root)) {
-    }
-
-    const Node &Document::GetRoot() const {
-        return root_;
-    }
-
-    bool Document::operator==(const Document &rhs) const {
-        return root_ == rhs.root_;
-    }
-
-    bool Document::operator!=(const Document &rhs) const {
-        return !(root_ == rhs.root_);
-    }
-
-    Document Load(istream &input) {
+    Document Load(std::istream& input) {
         return Document{LoadNode(input)};
     }
 
-    void ValuePrinter::operator()(std::nullptr_t) {
-        out << "null"sv;
-    }
-
-    void ValuePrinter::operator()(const std::string &value) {
-        out << "\""sv;
-        for (const char &c: value) { /* экранируем \n, \r, \", \t, \\ */
-            if (c == '\n') {
-                out << "\\n"sv;
-                continue;
-            }
-            if (c == '\r') {
-                out << "\\r"sv;
-                continue;
-            }
-            if (c == '\"') out << "\\"sv;
-            if (c == '\t') {
-                out << "\t"sv;
-                continue;
-            }
-            if (c == '\\') out << "\\"sv;
-            out << c;
-        }
-        out << "\""sv;
-    }
-
-    void ValuePrinter::operator()(int value) {
-        out << value;
-    }
-
-    void ValuePrinter::operator()(double value) {
-        out << value;
-    }
-
-    void ValuePrinter::operator()(bool value) {
-        out << std::boolalpha << value;
-    }
-
-    void ValuePrinter::operator()(const Array &array) {
-        out << "["sv;
-        bool first = true;
-        for (const auto &elem: array) {
-            if (first) {
-                first = false;
-            } else {
-                out << ", "sv;
-            }
-            std::visit(ValuePrinter{out}, elem.GetValue());
-        }
-        out << "]"sv;
-    }
-
-    void ValuePrinter::operator()(const Dict &dict) {
-        out << "{"sv;
-        bool first = true;
-        for (auto &[key, node]: dict) {
-            if (first) {
-                first = false;
-            } else {
-                out << ", "sv;
-            }
-            out << "\"" << key << "\":"sv;
-            std::visit(ValuePrinter{out}, node.GetValue());
-        }
-        out << "}"sv;
-    }
-
-    void Print(const Document &doc, std::ostream &out) {
-        std::visit(ValuePrinter{out}, doc.GetRoot().GetValue());
+    void Print(const Document& doc, std::ostream& output) {
+        PrintNode(doc.GetRoot(), PrintContext{output});
     }
 
 }  // namespace json

@@ -3,123 +3,140 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <vector>
 #include <variant>
-
+#include <vector>
 
 namespace json {
 
     class Node;
-// Сохраните объявления Dict и Array без изменения
     using Dict = std::map<std::string, Node>;
     using Array = std::vector<Node>;
 
-// Эта ошибка должна выбрасываться при ошибках парсинга JSON
     class ParsingError : public std::runtime_error {
     public:
         using runtime_error::runtime_error;
     };
 
-    class Node {
+    class Node final
+            : private std::variant<std::nullptr_t, Array, Dict, bool, int, double, std::string> {
     public:
-        /* Реализуйте Node, используя std::variant */
-        using Value = std::variant<std::nullptr_t, std::string, int, double, bool, Array, Dict>;
+        using variant::variant;
+        using Value = variant;
 
-        Node() = default;
+        bool IsInt() const {
+            return std::holds_alternative<int>(*this);
+        }
+        int AsInt() const {
+            using namespace std::literals;
+            if (!IsInt()) {
+                throw std::logic_error("Not an int"s);
+            }
+            return std::get<int>(*this);
+        }
 
-        template<class T>
-        Node(T value) : value_(std::move(value)) {}
+        bool IsPureDouble() const {
+            return std::holds_alternative<double>(*this);
+        }
+        bool IsDouble() const {
+            return IsInt() || IsPureDouble();
+        }
+        double AsDouble() const {
+            using namespace std::literals;
+            if (!IsDouble()) {
+                throw std::logic_error("Not a double"s);
+            }
+            return IsPureDouble() ? std::get<double>(*this) : AsInt();
+        }
 
-        bool IsInt() const;
+        bool IsBool() const {
+            return std::holds_alternative<bool>(*this);
+        }
+        bool AsBool() const {
+            using namespace std::literals;
+            if (!IsBool()) {
+                throw std::logic_error("Not a bool"s);
+            }
 
-        bool IsDouble() const;
+            return std::get<bool>(*this);
+        }
 
-        bool IsPureDouble() const;
+        bool IsNull() const {
+            return std::holds_alternative<std::nullptr_t>(*this);
+        }
 
-        bool IsBool() const;
+        bool IsArray() const {
+            return std::holds_alternative<Array>(*this);
+        }
+        const Array& AsArray() const {
+            using namespace std::literals;
+            if (!IsArray()) {
+                throw std::logic_error("Not an array"s);
+            }
 
-        bool IsString() const;
+            return std::get<Array>(*this);
+        }
 
-        bool IsNull() const;
+        bool IsString() const {
+            return std::holds_alternative<std::string>(*this);
+        }
+        const std::string& AsString() const {
+            using namespace std::literals;
+            if (!IsString()) {
+                throw std::logic_error("Not a string"s);
+            }
 
-        bool IsArray() const;
+            return std::get<std::string>(*this);
+        }
 
-        bool IsMap() const;
+        bool IsDict() const {
+            return std::holds_alternative<Dict>(*this);
+        }
+        const Dict& AsDict() const {
+            using namespace std::literals;
+            if (!IsDict()) {
+                throw std::logic_error("Not a dict"s);
+            }
 
-        int AsInt() const;
+            return std::get<Dict>(*this);
+        }
 
-        bool AsBool() const;
+        bool operator==(const Node& rhs) const {
+            return GetValue() == rhs.GetValue();
+        }
 
-        double AsDouble() const;
-
-        const std::string &AsString() const;
-
-        const Array &AsArray() const;
-
-        const Dict &AsMap() const;
-
-        const Value &GetValue() const;
-
-        bool operator==(const Node &rhs) const;
-
-        bool operator!=(const Node &rhs) const;
-
-    private:
-        Value value_;
+        const Value& GetValue() const {
+            return *this;
+        }
     };
+
+    inline bool operator!=(const Node& lhs, const Node& rhs) {
+        return !(lhs == rhs);
+    }
 
     class Document {
     public:
-        explicit Document(Node root);
+        explicit Document(Node root)
+                : root_(std::move(root)) {
+        }
 
-        const Node &GetRoot() const;
-
-        bool operator==(const Document &rhs) const;
-
-        bool operator!=(const Document &rhs) const;
+        const Node& GetRoot() const {
+            return root_;
+        }
 
     private:
         Node root_;
     };
 
-    Document Load(std::istream &input);
+    inline bool operator==(const Document& lhs, const Document& rhs) {
+        return lhs.GetRoot() == rhs.GetRoot();
+    }
 
-// Контекст вывода, хранит ссылку на поток вывода и текущий отсуп
-    struct PrintContext {
-        std::ostream &out;
-        int indent_step = 4;
-        int indent = 0;
+    inline bool operator!=(const Document& lhs, const Document& rhs) {
+        return !(lhs == rhs);
+    }
 
-        void PrintIndent() const {
-            for (int i = 0; i < indent; ++i) {
-                out.put(' ');
-            }
-        }
+    Document Load(std::istream& input);
 
-        // Возвращает новый контекст вывода с увеличенным смещением
-        PrintContext Indented() const {
-            return {out, indent_step, indent_step + indent};
-        }
-    };
-
-    struct ValuePrinter {
-        std::ostream &out;
-
-        void operator()(std::nullptr_t);
-
-        void operator()(const std::string &value);
-
-        void operator()(int value);
-
-        void operator()(double value);
-
-        void operator()(bool value);
-
-        void operator()(const Array &array);
-
-        void operator()(const Dict &dict);
-    };
-
-    void Print(const Document &doc, std::ostream &out);
+    void Print(const Document& doc, std::ostream& output);
 
 }  // namespace json

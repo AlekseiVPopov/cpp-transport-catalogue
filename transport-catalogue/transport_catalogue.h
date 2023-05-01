@@ -40,7 +40,8 @@ namespace transport_catalogue {
 
         std::vector<const Bus *> GetAllBuses();
 
-        std::vector<const Stop *> GetAllStopWBusses(const std::vector<const Bus *> &busses);
+        //std::vector<const Stop *> GetAllStopWBusses(const std::vector<const Bus *> &busses);
+        std::vector<const Stop *> GetAllStopWBusses();
 
 
     private:

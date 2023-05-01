@@ -169,13 +169,21 @@ namespace transport_catalogue {
         return res;
     }
 
-    std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses(const std::vector<const Bus *> &busses) {
+    //std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses(const std::vector<const Bus *> &busses) {
+    std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses() {
         std::vector<const Stop *> res;
         res.reserve(stops_.size());
 
-        for (const auto &bus: busses) {
-            for (const auto &stop: bus->stops) {
-                res.emplace_back(stop);
+//        for (const auto &bus: busses) {
+//            for (const auto &stop: bus->stops) {
+//                res.emplace_back(stop);
+//            }
+//        }
+
+        for (auto &stop: stops_) {
+            if (stop_to_buses_.find(&stop) != stop_to_buses_.end()) {
+                res.emplace_back(&stop);
+
             }
         }
 

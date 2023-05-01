@@ -1,5 +1,10 @@
 #include "json_reader.h"
+#include <unordered_set>
 
+#include "domain.h"
+#include "transport_catalogue.h"
+#include "map_renderer.h"
+#include "json.h"
 /*
  * Здесь можно разместить код наполнения транспортного справочника данными из JSON,
  * а также код обработки запросов к базе и формирование массива ответов в формате JSON
@@ -23,10 +28,10 @@ namespace transport_catalogue {
         try {
             const auto &doc = json_doc.GetRoot();
 
-            for (const auto &[category, cat_value]: doc.AsMap()) {
+            for (const auto &[category, cat_value]: doc.AsDict()) {
                 if (category == "base_requests"s) {
                     for (const auto &req_value: cat_value.AsArray()) {
-                        const auto &command = req_value.AsMap();
+                        const auto &command = req_value.AsDict();
                         if (command.at("type"s).AsString() == "Stop"s) {
                             base_stops_requests_.push_back(&req_value);
                         } else if (command.at("type"s).AsString() == "Bus"s) {
@@ -37,7 +42,7 @@ namespace transport_catalogue {
                     for (const auto &req_value: cat_value.AsArray()) {
                         stat_requests_.push_back(&req_value);
                     }
-                } else if (category == "render_settings"s && !cat_value.AsMap().empty()) {
+                } else if (category == "render_settings"s && !cat_value.AsDict().empty()) {
                     ParseSettings(cat_value);
                 }
             }
@@ -49,13 +54,13 @@ namespace transport_catalogue {
 
     void JsonRequestProcessor::ParseBaseRequests() {
         for (const auto stop_jnode: base_stops_requests_) {
-            const auto &stop_map = stop_jnode->AsMap();
+            const auto &stop_map = stop_jnode->AsDict();
             InputStopInfo stop_info{stop_map.at("name"s).AsString(),
                                     {stop_map.at("latitude"s).AsDouble(),
                                      stop_map.at("longitude"s).AsDouble()}};
             parsed_stop_info_deque_.emplace_back(std::move(stop_info));
 
-            const auto &dist_info_map = stop_map.at("road_distances"s).AsMap();
+            const auto &dist_info_map = stop_map.at("road_distances"s).AsDict();
             if (!dist_info_map.empty()) {
                 InputDistanceInfo dist_info{stop_map.at("name"s).AsString(), {}};
                 for (const auto &[neigh_name, dist]: dist_info_map) {
@@ -67,7 +72,7 @@ namespace transport_catalogue {
 
 
         for (const auto bus_jnode: base_bus_requests_) {
-            const auto &bus_map = bus_jnode->AsMap();
+            const auto &bus_map = bus_jnode->AsDict();
             InputBusInfo bus_info{bus_map.at("name"s).AsString(), {}};
 
             std::vector<std::string> stops_vec;
@@ -102,7 +107,7 @@ namespace transport_catalogue {
 
         transport_catalogue::RenderSettings rs;
 
-        for (const auto &[key, value]: settings_node.AsMap()) {
+        for (const auto &[key, value]: settings_node.AsDict()) {
             if (key == "width"s) {
                 rs.width = value.AsDouble();
             }
@@ -205,7 +210,7 @@ namespace transport_catalogue {
         arr.reserve(1'000);
 
         for (const auto stat_jnode: stat_requests_) {
-            const auto &stat_map = stat_jnode->AsMap();
+            const auto &stat_map = stat_jnode->AsDict();
             if (stat_map.at("type"s).AsString() == "Bus"s) {
                 const auto res = db_.GetBusInfo(stat_map.at("name"s).AsString());
                 if (res) {
@@ -267,7 +272,8 @@ namespace transport_catalogue {
     std::string JsonRequestProcessor::GenerateMapToSvg() {
 
         const auto &all_buses = db_.GetAllBuses();
-        auto all_stops = db_.GetAllStopWBusses(all_buses);
+        //auto all_stops = db_.GetAllStopWBusses(all_buses);
+        auto all_stops = db_.GetAllStopWBusses();
 
         renderer_.AddBusLines(all_buses, all_stops);
 
