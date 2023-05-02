@@ -37,8 +37,8 @@ int main() {
     svg::Document doc;
     MapRenderer mr(doc);
 
-    RequestHandler rh(tc, mr);
-    //RequestHandler rh(tc);
+    JsonRequestProcessor rh(tc, mr);
+    //JsonRequestProcessor rh(tc);
 
 
 

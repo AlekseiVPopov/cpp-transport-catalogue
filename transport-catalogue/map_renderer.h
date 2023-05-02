@@ -2,6 +2,7 @@
 
 #include "geo.h"
 #include "svg.h"
+#include "domain.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -18,7 +19,6 @@
 
 
 namespace transport_catalogue {
-
 
 
     inline const double EPSILON = 1e-6;
@@ -129,6 +129,16 @@ namespace transport_catalogue {
                                                         line_stop_circle_layer_(document_.AddLayer()),
                                                         line_stop_name_layer_(document_.AddLayer()) {}
 
+        void SetSettings(RenderSettings rs);
+
+        RenderSettings &GetSettings();
+
+        void AddBusLines(const std::vector<const Bus *> &buses, const std::vector<const Stop *> &stops);
+
+        void RenderMap(std::ostream &out) const;
+
+    private:
+
         void AddTransportLine(std::vector<svg::Point> &points, svg::Color color);
 
         void AddTransportLineName(const svg::Point &point, const std::string &text, const svg::Color color);
@@ -137,14 +147,6 @@ namespace transport_catalogue {
 
         void AddTransportLineStopName(const svg::Point &points, const std::string &name, const svg::Color color);
 
-        void RenderMap(std::ostream &out) const;
-
-        void SetSettings(RenderSettings rs);
-
-        RenderSettings &GetSettings();
-
-
-    private:
         RenderSettings settings_;
         svg::Document &document_;
         svg::DocumentLayer &line_layer_;
