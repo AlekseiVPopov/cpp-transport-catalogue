@@ -6,7 +6,6 @@ namespace svg {
 
     using namespace std::literals;
 
-
     std::ostream &operator<<(std::ostream &os, const StrokeLineCap &cap) {
         switch (cap) {
             case StrokeLineCap::BUTT:

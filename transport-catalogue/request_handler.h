@@ -23,25 +23,22 @@
 // с другими подсистемами приложения.
 // См. паттерн проектирования Фасад: https://ru.wikipedia.org/wiki/Фасад_(шаблон_проектирования)
 
-namespace request_handler {
-
-    using namespace transport_catalogue;
-    using namespace json;
+namespace transport_catalogue {
 
     class RequestHandler {
     public:
         // MapRenderer понадобится в следующей части итогового проекта
-//        RequestHandler(TransportCatalogue &db, renderer::MapRenderer &renderer) : db_(db), renderer_(
-//                renderer) {}
-        RequestHandler(TransportCatalogue &db, renderer::MapRenderer &renderer) : db_(db), renderer_(renderer) {
+//        RequestHandler(TransportCatalogue &db, transport_catalogue::MapRenderer &transport_catalogue) : db_(db), renderer_(
+//                transport_catalogue) {}
+        RequestHandler(transport_catalogue::TransportCatalogue &db, transport_catalogue::MapRenderer &renderer) : db_(db), renderer_(renderer) {
         }
 
 
         // Возвращает информацию о маршруте (запрос Bus)
-        std::optional<BusInfoResponse> GetBusStat(const std::string_view &bus_name) const;
+        std::optional<transport_catalogue::BusInfoResponse> GetBusStat(const std::string_view &bus_name) const;
 
         // Возвращает маршруты, проходящие через
-        std::optional<StopInfoResponse> GetBusesByStop(const std::string_view &stop_name) const;
+        std::optional<transport_catalogue::StopInfoResponse> GetBusesByStop(const std::string_view &stop_name) const;
 
         void AddRequests(const json::Document &json_doc);
 
@@ -60,16 +57,16 @@ namespace request_handler {
 
     private:
         // RequestHandler использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
-        TransportCatalogue &db_;
-        renderer::MapRenderer &renderer_;
+        transport_catalogue::TransportCatalogue &db_;
+        transport_catalogue::MapRenderer &renderer_;
 
-        std::deque<const Node *> base_stops_requests_;
-        std::deque<const Node *> base_bus_requests_;
-        std::deque<const Node *> stat_requests_;
+        std::deque<const json::Node *> base_stops_requests_;
+        std::deque<const json::Node *> base_bus_requests_;
+        std::deque<const json::Node *> stat_requests_;
         //Node &settings_requests_;
 
-        std::deque<InputStopInfo> parsed_stop_info_deque_;
-        std::deque<InputBusInfo> parsed_bus_info_deque_;
-        std::deque<InputDistanceInfo> parsed_distance_info_deque_;
+        std::deque<transport_catalogue::InputStopInfo> parsed_stop_info_deque_;
+        std::deque<transport_catalogue::InputBusInfo> parsed_bus_info_deque_;
+        std::deque<transport_catalogue::InputDistanceInfo> parsed_distance_info_deque_;
     };
 }

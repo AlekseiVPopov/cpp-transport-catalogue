@@ -10,15 +10,12 @@
  * а также код обработки запросов к базе и формирование массива ответов в формате JSON
  */
 
-namespace json_reader {
-
-    using namespace json;
-    using namespace request_handler;
+namespace transport_catalogue {
 
     json::Document LoadJSONString(const std::string &s);
     json::Document LoadJSONStream(std::istream& input);
 
-    void PushInputJsonToRH(Document &json_doc, RequestHandler& rh);
+    void PushInputJsonToRH(json::Document &json_doc, transport_catalogue::RequestHandler& rh);
 
 
     std::string Print(const json::Node &node);

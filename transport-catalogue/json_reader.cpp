@@ -5,7 +5,10 @@
  * а также код обработки запросов к базе и формирование массива ответов в формате JSON
  */
 
-namespace json_reader {
+namespace transport_catalogue {
+
+    using namespace json;
+    using namespace transport_catalogue;
 
     json::Document LoadJSONString(const std::string &s) {
         std::istringstream strm(s);

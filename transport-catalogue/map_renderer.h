@@ -17,9 +17,9 @@
 
 
 
-namespace renderer {
+namespace transport_catalogue {
 
-    using namespace std::string_literals;
+
 
     inline const double EPSILON = 1e-6;
 
@@ -44,7 +44,7 @@ namespace renderer {
         svg::Color underlayer_color = svg::Rgba{255, 255, 255, 0.85};
         double underlayer_width = 3.0;
 
-        std::vector<svg::Color> color_palette = {"green"s, svg::Rgb{255, 160, 0}, "red"s};
+        std::vector<svg::Color> color_palette = {"green", svg::Rgb{255, 160, 0}, "red"};
     };
 
 
@@ -123,33 +123,6 @@ namespace renderer {
     class MapRenderer {
     public:
 
-//        template<typename DrawableIterator>
-//        void DrawPicture(DrawableIterator begin, DrawableIterator end, svg::ObjectContainer &target) {
-//            for (auto it = begin; it != end; ++it) {
-//                (*it)->Draw(target);
-//            }
-//        }
-//
-//        template<typename Container>
-//        void DrawPicture(const Container &container, svg::ObjectContainer &target) {
-//            using namespace std;
-//            DrawPicture(begin(container), end(container), target);
-//        }
-
-//        // Выполняет линейную интерполяцию значения от from до to в зависимости от параметра t
-//        uint8_t Lerp(uint8_t from, uint8_t to, double t) {
-//            return static_cast<uint8_t>(std::round((to - from) * t + from));
-//        }
-//
-//        // Выполняет линейную интерполяцию Rgb цвета от from до to в зависимости от параметра t
-//        svg::Rgb Lerp(svg::Rgb from, svg::Rgb to, double t) {
-//            return {Lerp(from.red, to.red, t),
-//                    Lerp(from.green, to.green, t),
-//                    Lerp(from.blue, to.blue, t)};
-//        }
-//
-
-
         explicit MapRenderer(svg::Document &document) : document_(document),
                                                         line_layer_(document_.AddLayer()),
                                                         line_name_layer_(document_.AddLayer()),
@@ -166,7 +139,7 @@ namespace renderer {
 
         void RenderMap(std::ostream &out) const;
 
-        void AddSettings(RenderSettings rs);
+        void SetSettings(RenderSettings rs);
 
         RenderSettings &GetSettings();
 

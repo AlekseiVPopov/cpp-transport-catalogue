@@ -12,7 +12,7 @@
 #include <iomanip>
 
 namespace svg {
-    using namespace std::string_literals;
+
 
     struct Rgb {
         Rgb() = default;
@@ -65,12 +65,14 @@ namespace svg {
         }
 
         void operator()(Rgb r) const {
+            using namespace std::string_literals;
             os << "rgb("s << std::to_string(r.red) << ","s <<
                std::to_string(r.green) << ","s <<
                std::to_string(r.blue) << ")";
         }
 
         void operator()(Rgba r) const {
+            using namespace std::string_literals;
             os << "rgba("s << std::to_string(r.red) << ","s <<
                std::to_string(r.green) << ","s <<
                std::to_string(r.blue) << ","s <<

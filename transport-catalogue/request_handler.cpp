@@ -8,8 +8,10 @@
  * можете оставить его пустым.
  */
 
-namespace request_handler {
+namespace transport_catalogue {
 
+    using namespace transport_catalogue;
+    using namespace json;
     using namespace std::string_literals;
 
     std::optional<BusInfoResponse> RequestHandler::GetBusStat(const std::string_view &bus_name) const {
@@ -101,7 +103,7 @@ namespace request_handler {
 
     void RequestHandler::ParseSettings(const Node &settings_node) {
 
-        renderer::RenderSettings rs;
+        transport_catalogue::RenderSettings rs;
 
         for (const auto &[key, value]: settings_node.AsMap()) {
             if (key == "width"s) {
@@ -181,7 +183,7 @@ namespace request_handler {
                 }
             }
         }
-        renderer_.AddSettings(rs);
+        renderer_.SetSettings(rs);
     }
 
 
@@ -283,11 +285,11 @@ namespace request_handler {
             all_stops_coords.emplace_back(stop->coordinates);
         }
 
-        const renderer::SphereProjector proj(all_stops_coords.begin(),
-                                             all_stops_coords.end(),
-                                             rs.width,
-                                             rs.height,
-                                             rs.padding);
+        const transport_catalogue::SphereProjector proj(all_stops_coords.begin(),
+                                                        all_stops_coords.end(),
+                                                        rs.width,
+                                                        rs.height,
+                                                        rs.padding);
 
 
         for (const auto &bus: all_buses) {

@@ -8,8 +8,9 @@
  * Пока можете оставить файл пустым.
  */
 
-namespace renderer {
+namespace transport_catalogue {
 
+    using namespace std::string_literals;
 
     void MapRenderer::AddTransportLine(std::vector<svg::Point> &points, svg::Color color) {
 
@@ -91,7 +92,7 @@ namespace renderer {
         document_.Render(out);
     }
 
-    void MapRenderer::AddSettings(RenderSettings rs) {
+    void MapRenderer::SetSettings(RenderSettings rs) {
         settings_ = std::move(rs);
     }
 

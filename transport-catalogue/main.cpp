@@ -6,9 +6,8 @@
 int main() {
 
     using namespace transport_catalogue;
-    using namespace json_reader;
     using namespace json;
-    using namespace renderer;
+
 
 //    const double WIDTH = 600.0;
 //    const double HEIGHT = 400.0;

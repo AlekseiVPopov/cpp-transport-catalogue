@@ -1,8 +1,10 @@
 #include "json.h"
 
-using namespace std;
 
 namespace json {
+
+    using namespace std;
+    using namespace std::string_view_literals;
 
     namespace {
 
@@ -230,32 +232,10 @@ namespace json {
 
     }  // namespace
 
-    Node::Node(std::nullptr_t)
-            : value_(nullptr) {
-    }
 
-    Node::Node(std::string value)
-            : value_(std::move(value)) {
-    }
+    template<class T>
+    Node::Node(T value) : value_(std::move(value)){
 
-    Node::Node(int value)
-            : value_(value) {
-    }
-
-    Node::Node(double value)
-            : value_(value) {
-    }
-
-    Node::Node(bool value)
-            : value_(value) {
-    }
-
-    Node::Node(Array array)
-            : value_(std::move(array)) {
-    }
-
-    Node::Node(Dict map)
-            : value_(std::move(map)) {
     }
 
     bool Node::IsInt() const {
@@ -332,6 +312,7 @@ namespace json {
     bool Node::operator!=(const Node &rhs) const {
         return !(value_ == rhs.value_);
     }
+
 
     Document::Document(Node root)
             : root_(std::move(root)) {
