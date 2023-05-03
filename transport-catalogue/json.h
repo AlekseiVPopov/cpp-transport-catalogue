@@ -28,7 +28,7 @@ namespace json {
         Node() = default;
 
         template<class T>
-        Node(T value);
+        Node(T value) : value_(std::move(value)) {}
 
         bool IsInt() const;
 

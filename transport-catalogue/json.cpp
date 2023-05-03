@@ -232,12 +232,6 @@ namespace json {
 
     }  // namespace
 
-
-    template<class T>
-    Node::Node(T value) : value_(std::move(value)){
-
-    }
-
     bool Node::IsInt() const {
         return holds_alternative<int>(value_);
     }

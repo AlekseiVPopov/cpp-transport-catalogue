@@ -34,11 +34,9 @@ namespace transport_catalogue {
         double stop_radius = 5.0;
 
         uint32_t bus_label_font_size = 20;
-        //std::vector<double> bus_label_offset = {7.0, 15.0};
         svg::Point bus_label_offset = {7.0, 15.0};
 
         uint32_t stop_label_font_size = 20;
-        //std::vector<double> stop_label_offset = {7.0, -3.0};
         svg::Point stop_label_offset = {7.0, -3.0};
 
         svg::Color underlayer_color = svg::Rgba{255, 255, 255, 0.85};
@@ -56,8 +54,8 @@ namespace transport_catalogue {
 
         // points_begin и points_end задают начало и конец интервала элементов geo::Coordinates
         template<typename PointInputIt>
-        SphereProjector(PointInputIt points_begin, PointInputIt points_end,
-                        double max_width, double max_height, double padding)
+        SphereProjector(PointInputIt points_begin, PointInputIt points_end, double max_width, double max_height,
+                        double padding)
                 : padding_(padding) //
         {
             // Если точки поверхности сферы не заданы, вычислять нечего
@@ -66,16 +64,14 @@ namespace transport_catalogue {
             }
 
             // Находим точки с минимальной и максимальной долготой
-            const auto [left_it, right_it] = std::minmax_element(
-                    points_begin, points_end,
-                    [](auto lhs, auto rhs) { return lhs.lng < rhs.lng; });
+            const auto [left_it, right_it] = std::minmax_element(points_begin, points_end,
+                                                                 [](auto lhs, auto rhs) { return lhs.lng < rhs.lng; });
             min_lon_ = left_it->lng;
             const double max_lon = right_it->lng;
 
             // Находим точки с минимальной и максимальной широтой
-            const auto [bottom_it, top_it] = std::minmax_element(
-                    points_begin, points_end,
-                    [](auto lhs, auto rhs) { return lhs.lat < rhs.lat; });
+            const auto [bottom_it, top_it] = std::minmax_element(points_begin, points_end,
+                                                                 [](auto lhs, auto rhs) { return lhs.lat < rhs.lat; });
             const double min_lat = bottom_it->lat;
             max_lat_ = top_it->lat;
 
@@ -106,10 +102,7 @@ namespace transport_catalogue {
 
         // Проецирует широту и долготу в координаты внутри SVG-изображения
         svg::Point operator()(geo::Coordinates coords) const {
-            return {
-                    (coords.lng - min_lon_) * zoom_coeff_ + padding_,
-                    (max_lat_ - coords.lat) * zoom_coeff_ + padding_
-            };
+            return {(coords.lng - min_lon_) * zoom_coeff_ + padding_, (max_lat_ - coords.lat) * zoom_coeff_ + padding_};
         }
 
     private:
@@ -123,8 +116,7 @@ namespace transport_catalogue {
     class MapRenderer {
     public:
 
-        explicit MapRenderer(svg::Document &document) : document_(document),
-                                                        line_layer_(document_.AddLayer()),
+        explicit MapRenderer(svg::Document &document) : document_(document), line_layer_(document_.AddLayer()),
                                                         line_name_layer_(document_.AddLayer()),
                                                         line_stop_circle_layer_(document_.AddLayer()),
                                                         line_stop_name_layer_(document_.AddLayer()) {}

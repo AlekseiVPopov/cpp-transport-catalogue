@@ -181,7 +181,7 @@ namespace svg {
         out << R"(<svg xmlns="http://www.w3.org/2000/svg" version="1.1">)" << std::endl;
 
 
-        for (const auto &layer : layers_list_) {
+        for (const auto &layer: layers_list_) {
             layer.Render(out);
         }
 

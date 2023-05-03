@@ -11,6 +11,4 @@
 namespace transport_catalogue {
 
 
-
-
 }

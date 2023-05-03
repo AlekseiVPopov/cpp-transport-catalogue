@@ -17,7 +17,8 @@ namespace transport_catalogue {
         // MapRenderer понадобится в следующей части итогового проекта
 //        JsonRequestProcessor(TransportCatalogue &db, transport_catalogue::MapRenderer &transport_catalogue) : db_(db), renderer_(
 //                transport_catalogue) {}
-        JsonRequestProcessor(transport_catalogue::TransportCatalogue &db, transport_catalogue::MapRenderer &renderer) : db_(db), renderer_(renderer) {
+        JsonRequestProcessor(transport_catalogue::TransportCatalogue &db, transport_catalogue::MapRenderer &renderer)
+                : db_(db), renderer_(renderer) {
         }
 
 
@@ -33,7 +34,7 @@ namespace transport_catalogue {
 
         void PushBaseRequest();
 
-        void ParseSettings(const json::Node& settings_node);
+        void ParseSettings(const json::Node &settings_node);
 
         std::string GenerateMapToSvg();
 
@@ -58,15 +59,13 @@ namespace transport_catalogue {
     };
 
 
-
     json::Document LoadJSONString(const std::string &s);
-    json::Document LoadJSONStream(std::istream& input);
+    json::Document LoadJSONStream(std::istream &input);
 
-    void PushInputJsonToRH(json::Document &json_doc, transport_catalogue::JsonRequestProcessor& rh);
+    void PushInputJsonToRH(json::Document &json_doc, transport_catalogue::JsonRequestProcessor &rh);
 
 
     std::string Print(const json::Node &node);
-
 
 
 }
