@@ -6,15 +6,17 @@
 
 namespace json {
 
-    class BaseContext;
 
-    class DictContext;
 
-    class DictKeyContext;
+    class Builder final {
+        class BaseContext;
 
-    class ArrayContext;
+        class DictContext;
 
-    class Builder {
+        class DictKeyContext;
+
+        class ArrayContext;
+
     public:
         Builder() = default;
 
@@ -32,10 +34,10 @@ namespace json {
 
         json::Document Build();
 
-        virtual ~Builder() = default;
-
 
     private:
+        void StartContainer(bool is_array);
+
         Node root_;
         std::vector<Node *> nodes_stack_;
         std::optional<std::string> key_ = std::nullopt;
@@ -43,7 +45,7 @@ namespace json {
     };
 
 
-    class BaseContext {
+    class Builder::BaseContext {
     public:
         BaseContext(Builder &builder) : builder_(builder) {}
 
@@ -52,7 +54,7 @@ namespace json {
 
     };
 
-    class DictContext : public BaseContext {
+    class Builder::DictContext : public BaseContext {
     public:
         DictContext(Builder &builder) : BaseContext(builder) {}
 
@@ -61,7 +63,7 @@ namespace json {
         Builder &EndDict();
     };
 
-    class DictKeyContext : public BaseContext {
+    class Builder::DictKeyContext : public BaseContext {
     public:
         DictKeyContext(Builder &builder) : BaseContext(builder) {}
 
@@ -72,7 +74,7 @@ namespace json {
         ArrayContext StartArray();
     };
 
-    class ArrayContext : public BaseContext {
+    class Builder::ArrayContext : public BaseContext {
     public:
         ArrayContext(Builder &builder) : BaseContext(builder) {}
 
@@ -84,6 +86,4 @@ namespace json {
 
         Builder &EndArray();
     };
-
-
 }
