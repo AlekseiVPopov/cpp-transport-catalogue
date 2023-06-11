@@ -6,6 +6,7 @@
 #include "json_builder.h"
 #include "domain.h"
 #include "transport_catalogue.h"
+#include "transport_router.h"
 #include "map_renderer.h"
 
 /*
@@ -18,12 +19,10 @@ namespace transport_catalogue {
     class JsonRequestProcessor {
     public:
         // MapRenderer понадобится в следующей части итогового проекта
-//        JsonRequestProcessor(TransportCatalogue &db, transport_catalogue::MapRenderer &transport_catalogue) : db_(db), renderer_(
-//                transport_catalogue) {}
-        JsonRequestProcessor(transport_catalogue::TransportCatalogue &db, transport_catalogue::MapRenderer &renderer)
-                : db_(db), renderer_(renderer) {
-        }
 
+        JsonRequestProcessor(transport_catalogue::TransportCatalogue &db,
+                             transport_catalogue::MapRenderer &renderer)
+                : db_(db), renderer_(renderer) {}
 
         // Возвращает информацию о маршруте (запрос Bus)
         std::optional<transport_catalogue::BusInfoResponse> GetBusStat(const std::string_view &bus_name) const;
@@ -37,7 +36,9 @@ namespace transport_catalogue {
 
         void PushBaseRequest();
 
-        void ParseSettings(const json::Node &settings_node);
+        void ParseRenderSettings(const json::Node &settings_node);
+
+        void ParseRoutingSettings(const json::Node &settings_node);
 
         std::string GenerateMapToSvg();
 
@@ -50,6 +51,7 @@ namespace transport_catalogue {
         // JsonRequestProcessor использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
         transport_catalogue::TransportCatalogue &db_;
         transport_catalogue::MapRenderer &renderer_;
+        transport_catalogue::TransportRouter router_{};
 
         std::deque<const json::Node *> base_stops_requests_;
         std::deque<const json::Node *> base_bus_requests_;
@@ -63,6 +65,7 @@ namespace transport_catalogue {
 
 
     json::Document LoadJSONString(const std::string &s);
+
     json::Document LoadJSONStream(std::istream &input);
 
     void PushInputJsonToRH(json::Document &json_doc, transport_catalogue::JsonRequestProcessor &rh);

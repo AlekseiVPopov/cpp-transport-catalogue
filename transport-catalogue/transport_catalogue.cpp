@@ -7,7 +7,7 @@ namespace transport_catalogue {
         if (stop == nullptr) {
             throw std::runtime_error("Try to add stop with nullptr"s);
         }
-        auto &new_stop = stops_.emplace_back(Stop{stop->stop_name, stop->coordinates});
+        auto &new_stop = stops_.emplace_back(Stop{stop->stop_name, stop->coordinates, last_stop_id_++});
         stop_name_to_stop_[new_stop.stop_name] = &new_stop;
     }
 
@@ -19,12 +19,12 @@ namespace transport_catalogue {
         return nullptr;
     }
 
-    int TransportCatalogue::CountUniqStops(Bus *bus) {
+    size_t TransportCatalogue::CountUniqStops(Bus *bus) {
         std::set<std::string_view> uniq_stop_names;
         for (auto stop: bus->stops) {
             uniq_stop_names.insert(stop->stop_name);
         }
-        return static_cast<int>(uniq_stop_names.size());
+        return uniq_stop_names.size();
     }
 
     void TransportCatalogue::AddBus(const InputBusInfo *bus) {
@@ -53,9 +53,15 @@ namespace transport_catalogue {
             throw std::runtime_error("Bus "s + bus->bus_name + " is not closed"s);
         }
 
-        auto &new_bus = buses_.emplace_back(std::move(Bus{bus->bus_name, std::move(stops), 0, 0, bus->is_circled}));
+        auto &new_bus = buses_.emplace_back(
+                std::move(Bus{bus->bus_name,
+                              std::move(stops),
+                              0,
+                              0,
+                              last_bus_id_++,
+                              bus->is_circled}));
         new_bus.stops_num = static_cast<int>(new_bus.stops.size());
-        new_bus.uniq_stops_num = CountUniqStops(&new_bus);
+        new_bus.uniq_stops_num = static_cast<int>(CountUniqStops(&new_bus));
         bus_name_to_bus_[new_bus.bus_name] = &new_bus;
 
         for (auto stop: new_bus.stops) {
@@ -191,6 +197,23 @@ namespace transport_catalogue {
             return lhs->stop_name < rhs->stop_name;
         });
 
+        return res;
+    }
+
+    size_t TransportCatalogue::GetLastStopId() const {
+        return last_stop_id_;
+    }
+
+
+    std::vector<int> TransportCatalogue::GetBusRealDistances(const Bus *bus) const {
+        std::vector<int> res(bus->stops.size(), -1);
+
+        std::transform(bus->stops.begin(),
+                       std::prev(bus->stops.end()),
+                       std::next(bus->stops.begin()),
+                       res.begin(),
+                       [bus, this](const auto &stop1, const auto &stop2) { return GetStopRealDistance(stop1, stop2); });
+        res.back() = GetStopRealDistance(*bus->stops.begin(), bus->stops.back());
         return res;
     }
 }

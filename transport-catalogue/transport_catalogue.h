@@ -15,10 +15,7 @@
 namespace transport_catalogue {
 
     class TransportCatalogue {
-
-
     public:
-
 
         void AddStop(const InputStopInfo *stop);
 
@@ -38,10 +35,15 @@ namespace transport_catalogue {
 
         int GetStopRealDistance(const Stop *stop1, const Stop *stop2) const;
 
+        std::vector<int> GetBusRealDistances(const Bus* bus) const;
+
         std::vector<const Bus *> GetAllBuses();
 
         //std::vector<const Stop *> GetAllStopWBusses(const std::vector<const Bus *> &busses);
         std::vector<const Stop *> GetAllStopWBusses();
+
+        size_t GetLastStopId() const;
+
 
 
     private:
@@ -52,8 +54,10 @@ namespace transport_catalogue {
         std::unordered_map<Stop *, std::set<Bus * >> stop_to_buses_;
         std::unordered_map<std::pair<const Stop *, const Stop *>, int, detail::PairOfStopPointersHash> neighbour_distance_;
 
-        static int CountUniqStops(Bus *bus);
+        size_t CountUniqStops(Bus *bus);
 
+        size_t last_stop_id_ = 0;
+        size_t last_bus_id_ = 0;
     };
 
 

@@ -39,7 +39,9 @@ namespace transport_catalogue {
                         stat_requests_.push_back(&req_value);
                     }
                 } else if (category == "render_settings"s && !cat_value.AsDict().empty()) {
-                    ParseSettings(cat_value);
+                    ParseRenderSettings(cat_value);
+                } else if (category == "routing_settings"s && !cat_value.AsDict().empty()) {
+                    ParseRoutingSettings(cat_value);
                 }
             }
         } catch (std::exception &e) {
@@ -99,7 +101,7 @@ namespace transport_catalogue {
     }
 
 
-    void JsonRequestProcessor::ParseSettings(const Node &settings_node) {
+    void JsonRequestProcessor::ParseRenderSettings(const Node &settings_node) {
 
         transport_catalogue::RenderSettings rs;
 
@@ -184,6 +186,17 @@ namespace transport_catalogue {
         renderer_.SetSettings(rs);
     }
 
+    void JsonRequestProcessor::ParseRoutingSettings(const Node &settings_node) {
+
+        for (const auto &[key, value]: settings_node.AsDict()) {
+            if (key == "bus_wait_time"s) {
+                router_.SetBusWaitTime(value.AsInt());
+            }
+            if (key == "bus_velocity"s) {
+                router_.SetBusVelocity(value.AsDouble());
+            }
+        }
+    }
 
     void JsonRequestProcessor::PushBaseRequest() {
 
@@ -198,6 +211,9 @@ namespace transport_catalogue {
         for (const auto &dist: parsed_distance_info_deque_) {
             db_.AddRealDistance(&dist);
         }
+
+        router_.SetDb(db_);
+        router_.FillGraph();
     }
 
     std::string JsonRequestProcessor::PushStatRequests() {
@@ -211,13 +227,6 @@ namespace transport_catalogue {
                 const auto res = db_.GetBusInfo(stat_map.at("name"s).AsString());
                 if (res) {
                     const auto &res_val = res.value();
-//                    arr.emplace_back(Dict{
-//                            {"request_id"s,        stat_map.at("id").AsInt()},
-//                            {"curvature"s,         res_val.curvature},
-//                            {"route_length"s,      res_val.real_length},
-//                            {"stop_count"s,        res_val.stops_num},
-//                            {"unique_stop_count"s, res_val.uniq_stops_num}
-//                    });
                     arr.emplace_back(json::Builder{}.StartDict()
                                              .Key("request_id"s).Value(stat_map.at("id").AsInt())
                                              .Key("curvature"s).Value(res_val.curvature)
@@ -227,10 +236,6 @@ namespace transport_catalogue {
                                              .EndDict().Build().GetRoot());
 
                 } else {
-//                    arr.emplace_back(Dict{
-//                            {"request_id"s,    stat_map.at("id").AsInt()},
-//                            {"error_message"s, "not found"s}
-//                    });
                     arr.emplace_back(json::Builder{}.StartDict()
                                              .Key("request_id"s).Value(stat_map.at("id").AsInt())
                                              .Key("error_message"s).Value("not found"s)
@@ -246,21 +251,12 @@ namespace transport_catalogue {
                     for (const auto &bus: res_val.buses) {
                         bus_arr.emplace_back(bus->bus_name);
                     }
-//
-//                    arr.emplace_back(Dict{
-//                            {"request_id"s, stat_map.at("id").AsInt()},
-//                            {"buses"s,      bus_arr}
-//                    });
                     arr.emplace_back(json::Builder{}.StartDict()
                                              .Key("request_id"s).Value(stat_map.at("id").AsInt())
                                              .Key("buses").Value(bus_arr)
                                              .EndDict().Build().GetRoot());
 
                 } else {
-//                    arr.emplace_back(Dict{
-//                            {"request_id"s,    stat_map.at("id").AsInt()},
-//                            {"error_message"s, "not found"s}
-//                    });
                     arr.emplace_back(json::Builder{}.StartDict()
                                              .Key("request_id"s).Value(stat_map.at("id").AsInt())
                                              .Key("error_message"s).Value("not found"s)
@@ -268,16 +264,52 @@ namespace transport_catalogue {
                 }
             } else if (stat_map.at("type"s).AsString() == "Map"s) {
                 auto res = GenerateMapToSvg();
-//                arr.emplace_back(Dict{
-//                        {"request_id"s, stat_map.at("id").AsInt()},
-//                        {"map"s,        res}
-//                });
                 arr.emplace_back(json::Builder{}.StartDict()
                                          .Key("request_id"s).Value(stat_map.at("id").AsInt())
                                          .Key("map"s).Value(res)
                                          .EndDict().Build().GetRoot());
-            }
+            } else if (stat_map.at("type"s).AsString() == "Route"s) {
+                const auto from = stat_map.at("from"s).AsString();
+                const auto to = stat_map.at("to"s).AsString();
 
+                auto res = router_.GetRoute(from, to);
+
+                if (res) {
+                    const auto &res_val = res.value();
+                    double total_time = 0;
+                    Array items;
+                    items.reserve(res_val.size());
+                    for (const auto &[edge_data, time]: res_val) {
+                        total_time += time;
+                        if (edge_data.span) {
+                            items.emplace_back(json::Builder{}.StartDict()
+                                                       .Key("bus"s).Value(edge_data.name.data())
+                                                       .Key("span_count"s).Value(edge_data.span)
+                                                       .Key("time"s).Value(time)
+                                                       .Key("type"s).Value("Bus"s)
+                                                       .EndDict().Build().GetRoot());
+                        } else {
+                            items.emplace_back(json::Builder{}.StartDict()
+                                                       .Key("stop_name"s).Value(edge_data.name.data())
+                                                       .Key("time"s).Value(time)
+                                                       .Key("type"s).Value("Wait"s)
+                                                       .EndDict().Build().GetRoot());
+                        }
+                    }
+
+                    arr.emplace_back(json::Builder{}.StartDict()
+                                             .Key("items").Value(items)
+                                             .Key("request_id"s).Value(stat_map.at("id").AsInt())
+                                             .Key("total_time").Value(total_time)
+                                             .EndDict().Build().GetRoot());
+
+                } else {
+                    arr.emplace_back(json::Builder{}.StartDict()
+                                             .Key("request_id"s).Value(stat_map.at("id").AsInt())
+                                             .Key("error_message"s).Value("not found"s)
+                                             .EndDict().Build().GetRoot());
+                }
+            }
         }
 
         if (!arr.empty()) {

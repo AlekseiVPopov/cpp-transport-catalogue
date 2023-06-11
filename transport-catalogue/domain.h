@@ -29,14 +29,15 @@ namespace transport_catalogue {
     struct Stop {
         std::string stop_name;
         geo::Coordinates coordinates;
+        size_t id = 0;
     };
-
 
     struct Bus {
         std::string bus_name;
         std::vector<Stop *> stops;
         int stops_num = 0;
         int uniq_stops_num = 0;
+        size_t id = 0;
         bool is_circled = false;
     };
 
@@ -70,7 +71,6 @@ namespace transport_catalogue {
         std::string stop_name;
         std::unordered_map<std::string, int> distance_to_neighbour;
     };
-
 
     namespace detail {
 
