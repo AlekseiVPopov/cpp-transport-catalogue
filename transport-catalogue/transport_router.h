@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <memory>
+#include <variant>
 #include "transport_catalogue.h"
 #include "graph.h"
 #include "router.h"
@@ -13,6 +14,18 @@ namespace transport_catalogue {
         int span = 0;
         std::string_view name;
     };
+
+    struct BusItem {
+        std::string_view name;
+        double time = 0;
+        int span = 0;
+    };
+
+    struct WaitItem {
+        std::string_view name;
+        double time = 0;
+    };
+
 
     class TransportRouter {
         using Graph = graph::DirectedWeightedGraph<double>;
@@ -26,15 +39,14 @@ namespace transport_catalogue {
 
         void FillGraph();
 
-        void InitializeRouter();
-
-        std::optional<std::vector<std::pair<EdgeData, double>>> GetRoute(std::string_view from, std::string_view to) const;
+        std::optional<std::vector<std::variant<BusItem, WaitItem>>> GetRoute(std::string_view from, std::string_view to) const;
 
     private:
         template<class StopIter, class DistIter>
         void FillGraphByStopRange(const StopIter begin, const StopIter end, const DistIter dist_vector_begin,
                                   std::string_view bus_name);
 
+        void InitializeRouter();
 
         TransportCatalogue db_;
         Graph graph_;

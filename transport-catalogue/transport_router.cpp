@@ -45,7 +45,8 @@ namespace transport_catalogue {
         router_ = std::make_unique<graph::Router<double>>(graph_);
     }
 
-    std::optional<std::vector<std::pair<EdgeData, double>>> TransportRouter::GetRoute(std::string_view from, std::string_view to) const {
+    std::optional<std::vector<std::variant<BusItem, WaitItem>>>
+    TransportRouter::GetRoute(std::string_view from, std::string_view to) const {
         if (const auto stop_from_info = db_.GetStopInfo(from),
                     stop_to_info = db_.GetStopInfo(to);
                 !stop_from_info ||
@@ -60,10 +61,17 @@ namespace transport_catalogue {
         auto res = router_->BuildRoute(stop_from->id * 2, stop_to->id * 2);
 
         if (res) {
-            std::vector<std::pair<EdgeData, double>> route;
+            std::vector<std::variant<BusItem, WaitItem>> route;
             route.reserve(res->edges.size());
             for (const auto &edge: res->edges) {
-                route.emplace_back(edges_data_.at(edge), graph_.GetEdge(edge).weight);
+                if (edges_data_.at(edge).span) {
+                    route.emplace_back(BusItem{edges_data_.at(edge).name,
+                                               graph_.GetEdge(edge).weight,
+                                               edges_data_.at(edge).span,});
+                } else {
+                    route.emplace_back(WaitItem{edges_data_.at(edge).name,
+                                                graph_.GetEdge(edge).weight});
+                }
             }
             return route;
         }

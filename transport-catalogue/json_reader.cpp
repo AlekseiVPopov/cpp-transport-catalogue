@@ -279,19 +279,23 @@ namespace transport_catalogue {
                     double total_time = 0;
                     Array items;
                     items.reserve(res_val.size());
-                    for (const auto &[edge_data, time]: res_val) {
-                        total_time += time;
-                        if (edge_data.span) {
+
+                    for (const auto &val: res_val) {
+                        if (std::holds_alternative<BusItem>(val)) {
+                            const auto edge_data = std::get<BusItem>(val);
+                            total_time += edge_data.time;
                             items.emplace_back(json::Builder{}.StartDict()
                                                        .Key("bus"s).Value(edge_data.name.data())
                                                        .Key("span_count"s).Value(edge_data.span)
-                                                       .Key("time"s).Value(time)
+                                                       .Key("time"s).Value(edge_data.time)
                                                        .Key("type"s).Value("Bus"s)
                                                        .EndDict().Build().GetRoot());
                         } else {
+                            const auto edge_data = std::get<WaitItem>(val);
+                            total_time += edge_data.time;
                             items.emplace_back(json::Builder{}.StartDict()
                                                        .Key("stop_name"s).Value(edge_data.name.data())
-                                                       .Key("time"s).Value(time)
+                                                       .Key("time"s).Value(edge_data.time)
                                                        .Key("type"s).Value("Wait"s)
                                                        .EndDict().Build().GetRoot());
                         }
