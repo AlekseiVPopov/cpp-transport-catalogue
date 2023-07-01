@@ -10,16 +10,20 @@
 #include <set>
 #include <optional>
 
+#include <transport_catalogue.pb.h>
 #include "domain.h"
+#include "transport_catalogue.pb.h"
 
 namespace transport_catalogue {
 
     class TransportCatalogue {
     public:
 
-        void AddStop(const InputStopInfo *stop);
+        void AddStop(const InputStopInfo *stop, const std::optional<size_t> id);
 
         const Stop *FindStop(std::string_view stop_name) const;
+
+        const Stop *FindStopById(const size_t id) const;
 
         void AddBus(const InputBusInfo *bus);
 
@@ -35,7 +39,7 @@ namespace transport_catalogue {
 
         int GetStopRealDistance(const Stop *stop1, const Stop *stop2) const;
 
-        std::vector<int> GetBusRealDistances(const Bus* bus) const;
+        std::vector<int> GetBusRealDistances(const Bus *bus) const;
 
         std::vector<const Bus *> GetAllBuses();
 
@@ -44,9 +48,30 @@ namespace transport_catalogue {
 
         size_t GetLastStopId() const;
 
+        const std::deque<Stop> &GetStops() const;
+
+        const std::deque<Bus> &GetBuses() const;
+
+        std::unordered_map<std::pair<const Stop *, const Stop *>, int, detail::PairOfStopPointersHash> &
+        GetNeighbourDistance();
+
+        transport_catalogue_protobuf::TransportCatalogueData Serialize() const;
+        void Deserialize (const transport_catalogue_protobuf::TransportCatalogueData& proto_transport_catalogue_data);
+
 
 
     private:
+        void Clear();
+        transport_catalogue_protobuf::AllStops SerializeStops() const;
+        void DeserializeStops(const transport_catalogue_protobuf::AllStops &proto_all_stops);
+
+        transport_catalogue_protobuf::AllBuses SerializeBuses() const;
+        void DeserializeBuses(const transport_catalogue_protobuf::AllBuses &proto_all_buses);
+
+        transport_catalogue_protobuf::AllDistances SerializeDistance() const;
+        void DeserializeDistance(const transport_catalogue_protobuf::AllDistances& proto_all_distances);
+
+
         std::deque<Stop> stops_;
         std::deque<Bus> buses_;
         std::unordered_map<std::string_view, Stop *> stop_name_to_stop_;
@@ -57,7 +82,6 @@ namespace transport_catalogue {
         size_t CountUniqStops(Bus *bus);
 
         size_t last_stop_id_ = 0;
-        size_t last_bus_id_ = 0;
     };
 
 

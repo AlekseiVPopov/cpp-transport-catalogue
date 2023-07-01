@@ -1,22 +1,32 @@
 #include "transport_catalogue.h"
+#include "transport_catalogue.pb.h"
 
 namespace transport_catalogue {
 
-    void TransportCatalogue::AddStop(const InputStopInfo *stop) {
+    void TransportCatalogue::AddStop(const InputStopInfo *stop, const std::optional<size_t> id = std::nullopt) {
         using namespace std::string_literals;
         if (stop == nullptr) {
             throw std::runtime_error("Try to add stop with nullptr"s);
         }
-        auto &new_stop = stops_.emplace_back(Stop{stop->stop_name, stop->coordinates, last_stop_id_++});
+
+        size_t new_id = id ? *id : last_stop_id_++;
+
+        auto &new_stop = stops_.emplace_back(Stop{stop->stop_name, stop->coordinates, new_id});
         stop_name_to_stop_[new_stop.stop_name] = &new_stop;
     }
-
 
     const Stop *TransportCatalogue::FindStop(std::string_view stop_name) const {
         if (stop_name_to_stop_.count(stop_name)) {
             return const_cast<Stop *>(stop_name_to_stop_.at(stop_name));
         }
         return nullptr;
+    }
+
+    const Stop *TransportCatalogue::FindStopById(const size_t id) const {
+        const auto stop_it = std::next(stops_.begin(), id);
+
+        assert(stop_it != stops_.end() && stop_it->id == id);
+        return &(*stop_it);
     }
 
     size_t TransportCatalogue::CountUniqStops(Bus *bus) {
@@ -58,7 +68,6 @@ namespace transport_catalogue {
                               std::move(stops),
                               0,
                               0,
-                              last_bus_id_++,
                               bus->is_circled}));
         new_bus.stops_num = static_cast<int>(new_bus.stops.size());
         new_bus.uniq_stops_num = static_cast<int>(CountUniqStops(&new_bus));
@@ -67,8 +76,6 @@ namespace transport_catalogue {
         for (auto stop: new_bus.stops) {
             stop_to_buses_[stop].insert(&new_bus);
         }
-
-
     }
 
 
@@ -216,4 +223,129 @@ namespace transport_catalogue {
         res.back() = GetStopRealDistance(*bus->stops.begin(), bus->stops.back());
         return res;
     }
+
+    const std::deque<Stop> &TransportCatalogue::GetStops() const {
+        return stops_;
+    }
+
+    const std::deque<Bus> &TransportCatalogue::GetBuses() const {
+        return buses_;
+    }
+
+    std::unordered_map<std::pair<const Stop *, const Stop *>, int, detail::PairOfStopPointersHash> &
+    TransportCatalogue::GetNeighbourDistance() {
+        return neighbour_distance_;
+    }
+
+    void TransportCatalogue::Clear() {
+        stops_.clear();
+        buses_.clear();
+        stop_name_to_stop_.clear();
+        bus_name_to_bus_.clear();
+        stop_to_buses_.clear();
+        neighbour_distance_.clear();
+        last_stop_id_ = 0;
+    }
+
+    transport_catalogue_protobuf::AllStops TransportCatalogue::SerializeStops() const {
+        transport_catalogue_protobuf::AllStops proto_all_stops;
+
+        for (const auto &stop: stops_) {
+            transport_catalogue_protobuf::Stop proto_stop;
+
+            proto_stop.set_id(stop.id);
+            proto_stop.set_name(stop.stop_name);
+            proto_stop.set_latitude(stop.coordinates.lat);
+            proto_stop.set_longitude(stop.coordinates.lng);
+            *proto_all_stops.add_stops() = std::move(proto_stop);
+        }
+        return proto_all_stops;
+    }
+
+    void TransportCatalogue::DeserializeStops(const transport_catalogue_protobuf::AllStops &proto_all_stops) {
+        for (const auto &proto_stop: proto_all_stops.stops()) {
+            const InputStopInfo stop_info{proto_stop.name(),
+                                          geo::Coordinates{proto_stop.latitude(),
+                                                           proto_stop.longitude()}};
+            AddStop(&stop_info, proto_stop.id());
+        }
+        last_stop_id_ = stops_.size();
+    }
+
+    transport_catalogue_protobuf::AllBuses TransportCatalogue::SerializeBuses() const {
+        transport_catalogue_protobuf::AllBuses proto_all_buses;
+
+        for (const auto &bus: buses_) {
+            transport_catalogue_protobuf::Bus proto_bus;
+
+            proto_bus.set_name(bus.bus_name);
+            proto_bus.set_is_circled(bus.is_circled);
+
+            const auto second_bus_end = !bus.is_circled ? std::next(bus.stops.begin(), 1 + (bus.stops.size() / 2 ))
+                                                        : bus.stops.end();
+
+            for (auto stop_it = bus.stops.begin(); stop_it != second_bus_end; ++stop_it) {
+                proto_bus.add_stops((*stop_it)->id);
+            }
+            *proto_all_buses.add_buses() = std::move(proto_bus);
+        }
+        return proto_all_buses;
+    }
+
+    void TransportCatalogue::DeserializeBuses(const transport_catalogue_protobuf::AllBuses &proto_all_buses) {
+
+        for (const auto &proto_bus: proto_all_buses.buses()) {
+            InputBusInfo bus_info;
+
+            bus_info.bus_name = proto_bus.name();
+            bus_info.is_circled = proto_bus.is_circled();
+
+            for (const auto &proto_stop_id: proto_bus.stops()) {
+                bus_info.stops.emplace_back(FindStopById(proto_stop_id)->stop_name);
+            }
+            AddBus(&bus_info);
+        }
+    }
+
+    transport_catalogue_protobuf::TransportCatalogueData TransportCatalogue::Serialize() const {
+        transport_catalogue_protobuf::TransportCatalogueData proto_transport_catalogue_data;
+        *proto_transport_catalogue_data.mutable_stops() = std::move(SerializeStops());
+        *proto_transport_catalogue_data.mutable_buses() = std::move(SerializeBuses());
+        *proto_transport_catalogue_data.mutable_distances() = std::move(SerializeDistance());
+        return proto_transport_catalogue_data;
+    }
+
+    void TransportCatalogue::Deserialize(
+            const transport_catalogue_protobuf::TransportCatalogueData &proto_transport_catalogue_data) {
+        Clear();
+        DeserializeStops(proto_transport_catalogue_data.stops());
+        DeserializeBuses(proto_transport_catalogue_data.buses());
+        DeserializeDistance(proto_transport_catalogue_data.distances());
+    }
+
+    transport_catalogue_protobuf::AllDistances TransportCatalogue::SerializeDistance() const {
+        transport_catalogue_protobuf::AllDistances proto_all_distances;
+
+        for (const auto &[stops_from_to, distance]: neighbour_distance_) {
+            const auto &[from, to] = stops_from_to;
+            transport_catalogue_protobuf::Distance proto_distance;
+            proto_distance.set_start_id(from->id);
+            proto_distance.set_end_id(to->id);
+            proto_distance.set_distance(distance);
+            *proto_all_distances.add_distances() = std::move(proto_distance);
+        }
+        return proto_all_distances;
+    }
+
+    void
+    TransportCatalogue::DeserializeDistance(const transport_catalogue_protobuf::AllDistances &proto_all_distances) {
+        for (const auto &proto_distance: proto_all_distances.distances()) {
+            neighbour_distance_.emplace(std::make_pair(FindStopById(proto_distance.start_id()),
+                                                       FindStopById(proto_distance.end_id())),
+                                        proto_distance.distance());
+
+        }
+    }
+
+
 }

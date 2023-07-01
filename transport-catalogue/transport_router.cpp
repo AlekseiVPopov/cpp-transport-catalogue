@@ -1,4 +1,5 @@
 #include "transport_router.h"
+#include "transport_router.pb.h"
 
 namespace transport_catalogue {
 
@@ -76,6 +77,67 @@ namespace transport_catalogue {
             return route;
         }
         return std::nullopt;
+    }
+
+    transport_catalogue_protobuf::TransportRouter TransportRouter::Serialize() const {
+        transport_catalogue_protobuf::TransportRouter proto_transport_router;
+
+        *proto_transport_router.mutable_settings() = std::move(SerializeSettings());
+        *proto_transport_router.mutable_graph() = std::move(graph_.Serialize());
+        *proto_transport_router.mutable_edges_data() = std::move(SerializeEdgesData());
+        *proto_transport_router.mutable_router_routes_internal_data() = std::move(router_->Serialize());
+
+        return proto_transport_router;
+    }
+
+    transport_catalogue_protobuf::RouteSettings TransportRouter::SerializeSettings() const {
+        transport_catalogue_protobuf::RouteSettings proto_route_settings;
+
+        proto_route_settings.set_bus_velocity(bus_velocity_);
+        proto_route_settings.set_bus_wait_time(wait_time_);
+
+        return proto_route_settings;
+    }
+
+    void TransportRouter::DeserializeSettings(const transport_catalogue_protobuf::RouteSettings &proto_router_settings) {
+        bus_velocity_ = proto_router_settings.bus_velocity();
+        wait_time_ = proto_router_settings.bus_wait_time();
+    }
+
+    void TransportRouter::Deserialize(const transport_catalogue_protobuf::TransportRouter &proto_transport_router) {
+
+        DeserializeSettings(proto_transport_router.settings());
+        graph_.Deserialize(proto_transport_router.graph());
+        DeserializeEdgesData(proto_transport_router.edges_data());
+        router_ = std::make_unique<graph::Router<double>>(graph_, proto_transport_router.router_routes_internal_data());
+
+    }
+
+    void TransportRouter::DeserializeEdgesData(const transport_catalogue_protobuf::EdgesData &proto_edges_data) {
+
+        edges_data_.clear();
+        edges_data_.reserve(proto_edges_data.edges_data_size());
+
+        for (const auto &proto_edge_data: proto_edges_data.edges_data()) {
+            auto span = proto_edge_data.span();
+
+            std::string_view name = span ? db_.FindBus(proto_edge_data.name())->bus_name :
+                                    db_.FindStop(proto_edge_data.name())->stop_name;
+
+            edges_data_.emplace_back(EdgeData{span, name});
+        }
+    }
+
+    transport_catalogue_protobuf::EdgesData TransportRouter::SerializeEdgesData() const {
+        transport_catalogue_protobuf::EdgesData proto_edges_data;
+
+        for (const auto &edge_data: edges_data_) {
+            transport_catalogue_protobuf::EdgeData proto_edge_data;
+            proto_edge_data.set_span(edge_data.span);
+            proto_edge_data.set_name(edge_data.name.data());
+            *proto_edges_data.add_edges_data() = std::move(proto_edge_data);
+        }
+        return proto_edges_data;
     }
 
     template<class StopIter, class DistIter>

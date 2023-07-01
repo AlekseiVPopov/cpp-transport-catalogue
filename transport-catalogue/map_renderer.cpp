@@ -92,12 +92,8 @@ namespace transport_catalogue {
         document_.Render(out);
     }
 
-    void MapRenderer::SetSettings(RenderSettings rs) {
-        settings_ = std::move(rs);
-    }
-
-    RenderSettings &MapRenderer::GetSettings() {
-        return settings_;
+    void MapRenderer::SetSettings(RenderSettings &&rs) {
+        settings_ = std::forward<RenderSettings>(rs);
     }
 
     void MapRenderer::AddBusLines(const std::vector<const Bus *> &buses, const std::vector<const Stop *> &stops) {
@@ -153,6 +149,109 @@ namespace transport_catalogue {
             AddTransportLineCircle(screen_coord, "white"s);
             AddTransportLineStopName(screen_coord, stop->stop_name, "black"s);
         }
+    }
+
+    transport_catalogue_protobuf::Color MapRenderer::SerializeColor(const svg::Color &color) const {
+        transport_catalogue_protobuf::Color proto_color;
+
+        if (std::holds_alternative<std::monostate>(color)) {
+            proto_color.set_color_string("none");
+
+        } else if (std::holds_alternative<svg::Rgb>(color)) {
+            svg::Rgb rgb = std::get<svg::Rgb>(color);
+
+            proto_color.mutable_rgb()->set_red(rgb.red);
+            proto_color.mutable_rgb()->set_green(rgb.green);
+            proto_color.mutable_rgb()->set_blue(rgb.blue);
+
+        } else if (std::holds_alternative<svg::Rgba>(color)) {
+            svg::Rgba rgba = std::get<svg::Rgba>(color);
+
+            proto_color.mutable_rgba()->set_red(rgba.red);
+            proto_color.mutable_rgba()->set_green(rgba.green);
+            proto_color.mutable_rgba()->set_blue(rgba.blue);
+            proto_color.mutable_rgba()->set_opacity(rgba.opacity);
+
+        } else if (std::holds_alternative<std::string>(color)) {
+            proto_color.set_color_string(std::get<std::string>(color));
+        }
+        return proto_color;
+    }
+
+    svg::Color MapRenderer::DeserializeColor(const transport_catalogue_protobuf::Color &proto_color) const {
+        if (proto_color.has_rgb()) {
+            return svg::Rgb{static_cast<uint8_t>(proto_color.rgb().red()),
+                            static_cast<uint8_t>(proto_color.rgb().green()),
+                            static_cast<uint8_t>(proto_color.rgb().blue())};
+        } else if (proto_color.has_rgba()) {
+            return svg::Rgba{static_cast<uint8_t>(proto_color.rgba().red()),
+                             static_cast<uint8_t>(proto_color.rgba().green()),
+                             static_cast<uint8_t>(proto_color.rgba().blue()),
+                             proto_color.rgba().opacity()};
+        }
+        return {proto_color.color_string()};
+    }
+
+    transport_catalogue_protobuf::RenderSettings MapRenderer::Serialize() const {
+        transport_catalogue_protobuf::RenderSettings proto_render_settings;
+
+        proto_render_settings.set_width(settings_.width);
+        proto_render_settings.set_height(settings_.height);
+        proto_render_settings.set_padding(settings_.padding);
+        proto_render_settings.set_line_width(settings_.line_width);
+        proto_render_settings.set_stop_radius(settings_.stop_radius);
+        proto_render_settings.set_bus_label_font_size(settings_.bus_label_font_size);
+
+        transport_catalogue_protobuf::Point proto_bus_label_offset;
+        proto_bus_label_offset.set_x(settings_.bus_label_offset.x);
+        proto_bus_label_offset.set_y(settings_.bus_label_offset.y);
+
+        *proto_render_settings.mutable_bus_label_offset() = std::move(proto_bus_label_offset);
+
+        proto_render_settings.set_stop_label_font_size(settings_.stop_label_font_size);
+
+        transport_catalogue_protobuf::Point proto_stop_label_offset;
+        proto_stop_label_offset.set_x(settings_.stop_label_offset.x);
+        proto_stop_label_offset.set_y(settings_.stop_label_offset.y);
+
+        *proto_render_settings.mutable_stop_label_offset() = std::move(proto_stop_label_offset);
+        *proto_render_settings.mutable_underlayer_color() = std::move(SerializeColor(settings_.underlayer_color));
+        proto_render_settings.set_underlayer_width(settings_.underlayer_width);
+
+        for (const auto &color: settings_.color_palette) {
+            *proto_render_settings.add_color_palette() = SerializeColor(color);
+        }
+        return proto_render_settings;
+    }
+
+    void
+    MapRenderer::Deserialize(const transport_catalogue_protobuf::RenderSettings &proto_render_settings) {
+        transport_catalogue::RenderSettings render_settings;
+
+        render_settings.width = proto_render_settings.width();
+        render_settings.height = proto_render_settings.height();
+        render_settings.padding =proto_render_settings.padding();
+        render_settings.line_width = proto_render_settings.line_width();
+        render_settings.stop_radius = proto_render_settings.stop_radius();
+        render_settings.bus_label_font_size = proto_render_settings.bus_label_font_size();
+
+        render_settings.bus_label_offset.x = proto_render_settings.bus_label_offset().x();
+        render_settings.bus_label_offset.y = proto_render_settings.bus_label_offset().y();
+
+        render_settings.stop_label_font_size = proto_render_settings.stop_label_font_size();
+
+        render_settings.stop_label_offset.x = proto_render_settings.stop_label_offset().x();
+        render_settings.stop_label_offset.y = proto_render_settings.stop_label_offset().y();
+
+        render_settings.underlayer_color = DeserializeColor(proto_render_settings.underlayer_color());
+        render_settings.underlayer_width = proto_render_settings.underlayer_width();
+
+        render_settings.color_palette.clear();
+        for (const auto &color_proto: proto_render_settings.color_palette()) {
+            render_settings.color_palette.push_back(DeserializeColor(color_proto));
+        }
+
+        SetSettings(std::move(render_settings));
     }
 
 

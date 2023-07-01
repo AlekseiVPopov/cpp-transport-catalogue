@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+
+package transport_catalogue_protobuf;
+
+import "map_renderer.proto";
+import "transport_router.proto";
+
+message Stop {
+  uint32 id = 1;
+  string name = 2;
+  double latitude = 3;
+  double longitude = 4;
+}
+
+message AllStops {
+  repeated Stop stops = 1;
+}
+
+message Bus {
+  string name = 1;
+  repeated uint32 stops = 2;
+  bool is_circled = 3;
+}
+
+message AllBuses {
+  repeated Bus buses = 1;
+}
+
+message Distance {
+  uint32 start_id = 1;
+  uint32 end_id = 2;
+  int32 distance = 3;
+}
+
+message AllDistances {
+  repeated Distance distances = 1;
+}
+
+message TransportCatalogueData {
+  AllStops stops = 1;
+  AllBuses buses = 2;
+  AllDistances distances = 3;
+}
+
+message TransportCatalogue {
+  TransportCatalogueData transport_catalogue = 1;
+  RenderSettings render_settings = 2;
+  TransportRouter transport_router = 3;
+}

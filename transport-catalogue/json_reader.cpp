@@ -42,6 +42,8 @@ namespace transport_catalogue {
                     ParseRenderSettings(cat_value);
                 } else if (category == "routing_settings"s && !cat_value.AsDict().empty()) {
                     ParseRoutingSettings(cat_value);
+                } else if (category == "serialization_settings"s && !cat_value.AsDict().empty()) {
+                    ParseSerializationSettings(cat_value);
                 }
             }
         } catch (std::exception &e) {
@@ -183,17 +185,25 @@ namespace transport_catalogue {
                 }
             }
         }
-        renderer_.SetSettings(rs);
+        renderer_.SetSettings(std::move(rs));
     }
 
     void JsonRequestProcessor::ParseRoutingSettings(const Node &settings_node) {
 
         for (const auto &[key, value]: settings_node.AsDict()) {
             if (key == "bus_wait_time"s) {
-                router_.SetBusWaitTime(value.AsInt());
+                t_router_.SetBusWaitTime(value.AsInt());
             }
             if (key == "bus_velocity"s) {
-                router_.SetBusVelocity(value.AsDouble());
+                t_router_.SetBusVelocity(value.AsDouble());
+            }
+        }
+    }
+
+    void JsonRequestProcessor::ParseSerializationSettings(const json::Node &settings_node) {
+        for (const auto &[key, value]: settings_node.AsDict()) {
+            if (key == "file"s) {
+                serializer_.SetFilePath(value.AsString());
             }
         }
     }
@@ -201,7 +211,7 @@ namespace transport_catalogue {
     void JsonRequestProcessor::PushBaseRequest() {
 
         for (const auto &stop: parsed_stop_info_deque_) {
-            db_.AddStop(&stop);
+            db_.AddStop(&stop, std::nullopt);
         }
 
         for (const auto &bus: parsed_bus_info_deque_) {
@@ -212,8 +222,8 @@ namespace transport_catalogue {
             db_.AddRealDistance(&dist);
         }
 
-        router_.SetDb(db_);
-        router_.FillGraph();
+        t_router_.SetDb(db_);
+        t_router_.FillGraph();
     }
 
     std::string JsonRequestProcessor::PushStatRequests() {
@@ -272,7 +282,7 @@ namespace transport_catalogue {
                 const auto from = stat_map.at("from"s).AsString();
                 const auto to = stat_map.at("to"s).AsString();
 
-                auto res = router_.GetRoute(from, to);
+                auto res = t_router_.GetRoute(from, to);
 
                 if (res) {
                     const auto &res_val = res.value();

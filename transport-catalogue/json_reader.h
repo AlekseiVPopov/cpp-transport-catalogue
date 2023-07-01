@@ -8,6 +8,7 @@
 #include "transport_catalogue.h"
 #include "transport_router.h"
 #include "map_renderer.h"
+#include "serialization.h"
 
 /*
  * Здесь можно разместить код наполнения транспортного справочника данными из JSON,
@@ -21,8 +22,10 @@ namespace transport_catalogue {
         // MapRenderer понадобится в следующей части итогового проекта
 
         JsonRequestProcessor(transport_catalogue::TransportCatalogue &db,
-                             transport_catalogue::MapRenderer &renderer)
-                : db_(db), renderer_(renderer) {}
+                             transport_catalogue::MapRenderer &renderer,
+                             transport_catalogue::TransportRouter &router,
+                             transport_catalogue::protobuf::Serializer &serializer)
+                : db_(db), renderer_(renderer), t_router_(router), serializer_(serializer) {}
 
         // Возвращает информацию о маршруте (запрос Bus)
         std::optional<transport_catalogue::BusInfoResponse> GetBusStat(const std::string_view &bus_name) const;
@@ -40,6 +43,8 @@ namespace transport_catalogue {
 
         void ParseRoutingSettings(const json::Node &settings_node);
 
+        void ParseSerializationSettings(const json::Node &settings_node);
+
         std::string GenerateMapToSvg();
 
         std::string PushStatRequests();
@@ -51,7 +56,8 @@ namespace transport_catalogue {
         // JsonRequestProcessor использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
         transport_catalogue::TransportCatalogue &db_;
         transport_catalogue::MapRenderer &renderer_;
-        transport_catalogue::TransportRouter router_{};
+        transport_catalogue::TransportRouter &t_router_;
+        transport_catalogue::protobuf::Serializer &serializer_;
 
         std::deque<const json::Node *> base_stops_requests_;
         std::deque<const json::Node *> base_bus_requests_;

@@ -5,11 +5,12 @@
 #include <cstdlib>
 #include <vector>
 
+#include <graph.pb.h>
+
 namespace graph {
 
     using VertexId = size_t;
     using EdgeId = size_t;
-
 
 
     template<typename Weight>
@@ -39,6 +40,56 @@ namespace graph {
         const Edge<Weight> &GetEdge(EdgeId edge_id) const;
 
         IncidentEdgesRange GetIncidentEdges(VertexId vertex) const;
+
+        std::vector<Edge<Weight>> &GetEdges() {
+            return edges_;
+        }
+
+        std::vector<IncidenceList> &GetIncidenceLists() {
+            return incidence_lists_;
+        }
+
+        void Deserialize(const transport_catalogue_protobuf::Graph &proto_graph) {
+
+            edges_.clear();
+            edges_.reserve(proto_graph.edges_size());
+            for (const auto &proto_edge: proto_graph.edges()) {
+                edges_.emplace_back(Edge<Weight>{proto_edge.from(), proto_edge.to(), proto_edge.weight()});
+            }
+
+            incidence_lists_.clear();
+            incidence_lists_.resize(proto_graph.incidence_lists_size());
+            auto incidence_lists_it = incidence_lists_.begin();
+
+            for (const auto &proto_incident_list: proto_graph.incidence_lists()) {
+                *incidence_lists_it = std::vector<graph::EdgeId>(proto_incident_list.values_size());
+                for (const auto &value: proto_incident_list.values()) {
+                    incidence_lists_it->emplace_back(value);
+                }
+                ++incidence_lists_it;
+            }
+        }
+
+        transport_catalogue_protobuf::Graph Serialize() const {
+            transport_catalogue_protobuf::Graph proto_graph;
+            for (const auto &edge: edges_) {
+                transport_catalogue_protobuf::Edge proto_edge;
+                proto_edge.set_from(edge.from);
+                proto_edge.set_to(edge.to);
+                proto_edge.set_weight(edge.weight);
+                *proto_graph.add_edges() = std::move(proto_edge);
+            }
+
+            for (const auto &incidence_list: incidence_lists_) {
+                transport_catalogue_protobuf::IncidenceList proto_incidence_list;
+                for (const auto &incidence: incidence_list) {
+                    proto_incidence_list.add_values(incidence);
+                }
+                *proto_graph.add_incidence_lists() = std::move(proto_incidence_list);
+            }
+
+            return proto_graph;
+        }
 
     private:
         std::vector<Edge<Weight>> edges_;

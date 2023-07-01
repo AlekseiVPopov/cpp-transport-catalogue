@@ -10,6 +10,7 @@
 #include <optional>
 #include <utility>
 #include <vector>
+#include <map_renderer.pb.h>
 /*
  * В этом файле вы можете разместить код, отвечающий за визуализацию карты маршрутов в формате SVG.
  * Визуализация маршрутов вам понадобится во второй части итогового проекта.
@@ -121,15 +122,22 @@ namespace transport_catalogue {
                                                         line_stop_circle_layer_(document_.AddLayer()),
                                                         line_stop_name_layer_(document_.AddLayer()) {}
 
-        void SetSettings(RenderSettings rs);
-
-        RenderSettings &GetSettings();
+        void SetSettings(RenderSettings &&rs);
 
         void AddBusLines(const std::vector<const Bus *> &buses, const std::vector<const Stop *> &stops);
 
         void RenderMap(std::ostream &out) const;
 
+        transport_catalogue_protobuf::RenderSettings Serialize() const;
+
+        void Deserialize(const transport_catalogue_protobuf::RenderSettings &proto_render_settings);
+
     private:
+
+
+        transport_catalogue_protobuf::Color SerializeColor(const svg::Color &color) const;
+
+        svg::Color DeserializeColor(const transport_catalogue_protobuf::Color &proto_color) const;
 
         void AddTransportLine(std::vector<svg::Point> &points, svg::Color color);
 

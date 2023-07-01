@@ -37,7 +37,6 @@ namespace transport_catalogue {
         std::vector<Stop *> stops;
         int stops_num = 0;
         int uniq_stops_num = 0;
-        size_t id = 0;
         bool is_circled = false;
     };
 

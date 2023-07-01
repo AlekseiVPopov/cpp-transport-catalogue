@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package transport_catalogue_protobuf;
+
+import "graph.proto";
+
+message RouteSettings {
+  int32 bus_wait_time = 1;
+  double bus_velocity = 2;
+}
+
+message EdgeData {
+  int32 span = 1;
+  string name = 2;
+}
+
+message EdgesData {
+  repeated EdgeData edges_data = 1;
+}
+
+message RouteInternalData {
+  double weight = 1;
+  uint64 prev_edge = 2;
+  bool has_prev_edge = 3;
+}
+
+message OptionalRouteInternalData {
+  RouteInternalData route_internal_data = 1;
+  bool is_present = 2;
+}
+
+message RoutesInternalData {
+  repeated OptionalRouteInternalData optional_route_internal_data_vector = 1;
+}
+
+message RouterRoutesInternalData {
+  repeated RoutesInternalData routes_internal_data = 1;
+}
+
+message TransportRouter{
+  RouteSettings settings = 1;
+  Graph graph = 2;
+  EdgesData edges_data = 3;
+  RouterRoutesInternalData router_routes_internal_data = 4;
+}
