@@ -44,7 +44,7 @@ namespace transport_catalogue {
             throw std::runtime_error("Try to add bus with nullptr"s);
         }
         std::vector<Stop *> stops;
-        auto stops_num = bus->is_circled ? bus->stops.size() : bus->stops.size() * 2 - 1;
+        auto stops_num = bus->is_circled ? bus->stops.size() : (bus->stops.size() - 1) * 2;
         stops.reserve(stops_num);
 
         for (const auto &stop: bus->stops) {
@@ -281,11 +281,16 @@ namespace transport_catalogue {
             proto_bus.set_name(bus.bus_name);
             proto_bus.set_is_circled(bus.is_circled);
 
-            const auto second_bus_end = !bus.is_circled ? std::next(bus.stops.begin(), 1 + (bus.stops.size() / 2 ))
-                                                        : bus.stops.end();
+            auto second_bus_end = bus.is_circled ? bus.stops.end()
+                                                        : std::next(bus.stops.begin(), 1 + (bus.stops.size() / 2));
 
-            for (auto stop_it = bus.stops.begin(); stop_it != second_bus_end; ++stop_it) {
-                proto_bus.add_stops((*stop_it)->id);
+            std::vector<Stop*> stops = {bus.stops.begin(), second_bus_end};
+
+
+            //for (auto stop_it = bus.stops.begin(); stop_it != second_bus_end; ++stop_it) {
+            for (auto &stop : stops) {
+                //proto_bus.add_stops((*stop_it)->id);
+                proto_bus.add_stops(stop->id);
             }
             *proto_all_buses.add_buses() = std::move(proto_bus);
         }
