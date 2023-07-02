@@ -43,33 +43,29 @@ namespace transport_catalogue {
 
         std::vector<const Bus *> GetAllBuses();
 
-        //std::vector<const Stop *> GetAllStopWBusses(const std::vector<const Bus *> &busses);
         std::vector<const Stop *> GetAllStopWBusses();
 
         size_t GetLastStopId() const;
 
-        const std::deque<Stop> &GetStops() const;
-
-        const std::deque<Bus> &GetBuses() const;
-
-        std::unordered_map<std::pair<const Stop *, const Stop *>, int, detail::PairOfStopPointersHash> &
-        GetNeighbourDistance();
-
         transport_catalogue_protobuf::TransportCatalogueData Serialize() const;
-        void Deserialize (const transport_catalogue_protobuf::TransportCatalogueData& proto_transport_catalogue_data);
 
+        void Deserialize(const transport_catalogue_protobuf::TransportCatalogueData &proto_transport_catalogue_data);
 
 
     private:
         void Clear();
+
         transport_catalogue_protobuf::AllStops SerializeStops() const;
+
         void DeserializeStops(const transport_catalogue_protobuf::AllStops &proto_all_stops);
 
         transport_catalogue_protobuf::AllBuses SerializeBuses() const;
+
         void DeserializeBuses(const transport_catalogue_protobuf::AllBuses &proto_all_buses);
 
         transport_catalogue_protobuf::AllDistances SerializeDistance() const;
-        void DeserializeDistance(const transport_catalogue_protobuf::AllDistances& proto_all_distances);
+
+        void DeserializeDistance(const transport_catalogue_protobuf::AllDistances &proto_all_distances);
 
 
         std::deque<Stop> stops_;

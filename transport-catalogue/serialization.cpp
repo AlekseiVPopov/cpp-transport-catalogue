@@ -11,6 +11,10 @@ namespace transport_catalogue::protobuf {
         protobuf_rs_ = std::move(data_.mr_p->Serialize());
         protobuf_tr_ = std::move(data_.tr_p->Serialize());
 
+//        std::string s1 = protobuf_tc_.SerializeAsString();
+//        std::string s2 = protobuf_rs_.SerializeAsString();
+//        std::string s3 = protobuf_tr_.SerializeAsString();
+
         return PushToFile();
     }
 
@@ -36,9 +40,9 @@ namespace transport_catalogue::protobuf {
         if (!out.is_open()) return false;
 
         transport_catalogue_protobuf::TransportCatalogue proto_catalogue;
-        *proto_catalogue.mutable_transport_catalogue() = protobuf_tc_;
-        *proto_catalogue.mutable_render_settings() = protobuf_rs_;
-        *proto_catalogue.mutable_transport_router() = protobuf_tr_;
+        *proto_catalogue.mutable_transport_catalogue() = std::move(protobuf_tc_);
+        *proto_catalogue.mutable_render_settings() = std::move(protobuf_rs_);
+        *proto_catalogue.mutable_transport_router() = std::move(protobuf_tr_);
 
         //const std::string test = proto_catalogue.SerializeAsString();
         proto_catalogue.SerializeToOstream(&out);

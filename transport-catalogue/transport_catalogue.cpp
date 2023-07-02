@@ -63,12 +63,7 @@ namespace transport_catalogue {
             throw std::runtime_error("Bus "s + bus->bus_name + " is not closed"s);
         }
 
-        auto &new_bus = buses_.emplace_back(
-                std::move(Bus{bus->bus_name,
-                              std::move(stops),
-                              0,
-                              0,
-                              bus->is_circled}));
+        auto &new_bus = buses_.emplace_back(std::move(Bus{bus->bus_name, std::move(stops), 0, 0, bus->is_circled}));
         new_bus.stops_num = static_cast<int>(new_bus.stops.size());
         new_bus.uniq_stops_num = static_cast<int>(CountUniqStops(&new_bus));
         bus_name_to_bus_[new_bus.bus_name] = &new_bus;
@@ -114,8 +109,7 @@ namespace transport_catalogue {
         }
         auto bus = bus_name_to_bus_.at(bus_name);
 
-        for (auto begin_it = bus->stops.begin();
-             begin_it != bus->stops.end(); ++begin_it) {
+        for (auto begin_it = bus->stops.begin(); begin_it != bus->stops.end(); ++begin_it) {
             if (next(begin_it) == bus->stops.end()) {
                 break;
             }
@@ -182,16 +176,9 @@ namespace transport_catalogue {
         return res;
     }
 
-    //std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses(const std::vector<const Bus *> &busses) {
     std::vector<const Stop *> TransportCatalogue::GetAllStopWBusses() {
         std::vector<const Stop *> res;
         res.reserve(stops_.size());
-
-//        for (const auto &bus: busses) {
-//            for (const auto &stop: bus->stops) {
-//                res.emplace_back(stop);
-//            }
-//        }
 
         for (auto &stop: stops_) {
             if (stop_to_buses_.find(&stop) != stop_to_buses_.end()) {
@@ -215,26 +202,10 @@ namespace transport_catalogue {
     std::vector<int> TransportCatalogue::GetBusRealDistances(const Bus *bus) const {
         std::vector<int> res(bus->stops.size(), -1);
 
-        std::transform(bus->stops.begin(),
-                       std::prev(bus->stops.end()),
-                       std::next(bus->stops.begin()),
-                       res.begin(),
+        std::transform(bus->stops.begin(), std::prev(bus->stops.end()), std::next(bus->stops.begin()), res.begin(),
                        [bus, this](const auto &stop1, const auto &stop2) { return GetStopRealDistance(stop1, stop2); });
         res.back() = GetStopRealDistance(*bus->stops.begin(), bus->stops.back());
         return res;
-    }
-
-    const std::deque<Stop> &TransportCatalogue::GetStops() const {
-        return stops_;
-    }
-
-    const std::deque<Bus> &TransportCatalogue::GetBuses() const {
-        return buses_;
-    }
-
-    std::unordered_map<std::pair<const Stop *, const Stop *>, int, detail::PairOfStopPointersHash> &
-    TransportCatalogue::GetNeighbourDistance() {
-        return neighbour_distance_;
     }
 
     void TransportCatalogue::Clear() {
@@ -265,8 +236,7 @@ namespace transport_catalogue {
     void TransportCatalogue::DeserializeStops(const transport_catalogue_protobuf::AllStops &proto_all_stops) {
         for (const auto &proto_stop: proto_all_stops.stops()) {
             const InputStopInfo stop_info{proto_stop.name(),
-                                          geo::Coordinates{proto_stop.latitude(),
-                                                           proto_stop.longitude()}};
+                                          geo::Coordinates{proto_stop.latitude(), proto_stop.longitude()}};
             AddStop(&stop_info, proto_stop.id());
         }
         last_stop_id_ = stops_.size();
@@ -281,14 +251,14 @@ namespace transport_catalogue {
             proto_bus.set_name(bus.bus_name);
             proto_bus.set_is_circled(bus.is_circled);
 
-            auto second_bus_end = bus.is_circled ? bus.stops.end()
-                                                        : std::next(bus.stops.begin(), 1 + (bus.stops.size() / 2));
+            auto second_bus_end = bus.is_circled ? bus.stops.end() : std::next(bus.stops.begin(),
+                                                                               1 + (bus.stops.size() / 2));
 
-            std::vector<Stop*> stops = {bus.stops.begin(), second_bus_end};
+            std::vector<Stop *> stops = {bus.stops.begin(), second_bus_end};
 
 
             //for (auto stop_it = bus.stops.begin(); stop_it != second_bus_end; ++stop_it) {
-            for (auto &stop : stops) {
+            for (auto &stop: stops) {
                 //proto_bus.add_stops((*stop_it)->id);
                 proto_bus.add_stops(stop->id);
             }
@@ -345,12 +315,10 @@ namespace transport_catalogue {
     void
     TransportCatalogue::DeserializeDistance(const transport_catalogue_protobuf::AllDistances &proto_all_distances) {
         for (const auto &proto_distance: proto_all_distances.distances()) {
-            neighbour_distance_.emplace(std::make_pair(FindStopById(proto_distance.start_id()),
-                                                       FindStopById(proto_distance.end_id())),
-                                        proto_distance.distance());
+            neighbour_distance_.emplace(
+                    std::make_pair(FindStopById(proto_distance.start_id()), FindStopById(proto_distance.end_id())),
+                    proto_distance.distance());
 
         }
     }
-
-
 }
