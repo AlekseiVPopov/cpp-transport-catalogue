@@ -12,8 +12,9 @@
 namespace transport_catalogue {
 
     struct EdgeData {
-        int span = 0;
+        size_t id = 0;
         std::string_view name;
+        int span = 0;
     };
 
     struct BusItem {
@@ -47,6 +48,8 @@ namespace transport_catalogue {
 
         transport_catalogue_protobuf::TransportRouter Serialize() const;
 
+    private:
+
         void DeserializeSettings(const transport_catalogue_protobuf::RouteSettings &proto_router_settings);
 
         transport_catalogue_protobuf::RouteSettings SerializeSettings() const;
@@ -55,11 +58,9 @@ namespace transport_catalogue {
 
         transport_catalogue_protobuf::EdgesData SerializeEdgesData() const;
 
-
-    private:
         template<class StopIter, class DistIter>
         void FillGraphByStopRange(const StopIter begin, const StopIter end, const DistIter dist_vector_begin,
-                                  std::string_view bus_name);
+                                  size_t bus_id, std::string_view bus_name);
 
         void InitializeRouter();
 

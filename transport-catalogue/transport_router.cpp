@@ -31,12 +31,13 @@ namespace transport_catalogue {
             const auto dist_vec = db_.GetBusRealDistances(bus);
 
             if (bus->is_circled) {
-                FillGraphByStopRange(bus->stops.begin(), bus->stops.end(), dist_vec.begin(), bus->bus_name);
+                FillGraphByStopRange(bus->stops.begin(), bus->stops.end(), dist_vec.begin(), bus->id, bus->bus_name);
             } else {
                 const auto second_end_stop = std::next(bus->stops.begin(), bus->stops.size() / 2);
-                FillGraphByStopRange(bus->stops.begin(), std::next(second_end_stop), dist_vec.begin(), bus->bus_name);
+                FillGraphByStopRange(bus->stops.begin(), std::next(second_end_stop), dist_vec.begin(), bus->id,
+                                     bus->bus_name);
                 FillGraphByStopRange(second_end_stop, bus->stops.end(),
-                                     std::next(dist_vec.begin(), bus->stops.size() / 2), bus->bus_name);
+                                     std::next(dist_vec.begin(), bus->stops.size() / 2), bus->id, bus->bus_name);
             }
         }
         InitializeRouter();
@@ -99,7 +100,8 @@ namespace transport_catalogue {
         return proto_route_settings;
     }
 
-    void TransportRouter::DeserializeSettings(const transport_catalogue_protobuf::RouteSettings &proto_router_settings) {
+    void
+    TransportRouter::DeserializeSettings(const transport_catalogue_protobuf::RouteSettings &proto_router_settings) {
         bus_velocity_ = proto_router_settings.bus_velocity();
         wait_time_ = proto_router_settings.bus_wait_time();
     }
@@ -118,13 +120,16 @@ namespace transport_catalogue {
         edges_data_.clear();
         edges_data_.reserve(proto_edges_data.edges_data_size());
 
+        const auto stops = db_.GetAllStops();
+        const auto buses = db_.GetAllBuses();
+
         for (const auto &proto_edge_data: proto_edges_data.edges_data()) {
             auto span = proto_edge_data.span();
 
-            std::string_view name = span ? db_.FindBus(proto_edge_data.name())->bus_name :
-                                    db_.FindStop(proto_edge_data.name())->stop_name;
+            std::string_view name = span ? (*std::next(buses.begin(), proto_edge_data.id()).base())->bus_name :
+                                    (*std::next(stops.begin(), proto_edge_data.id()).base())->stop_name;
 
-            edges_data_.emplace_back(EdgeData{span, name});
+            edges_data_.emplace_back(EdgeData{proto_edge_data.id(), name, span});
         }
     }
 
@@ -134,7 +139,7 @@ namespace transport_catalogue {
         for (const auto &edge_data: edges_data_) {
             transport_catalogue_protobuf::EdgeData proto_edge_data;
             proto_edge_data.set_span(edge_data.span);
-            proto_edge_data.set_name(edge_data.name.data());
+            proto_edge_data.set_id(edge_data.id);
             *proto_edges_data.add_edges_data() = std::move(proto_edge_data);
         }
         return proto_edges_data;
@@ -142,16 +147,15 @@ namespace transport_catalogue {
 
     template<class StopIter, class DistIter>
     void
-    TransportRouter::FillGraphByStopRange(const StopIter begin, const StopIter end,
-                                          const DistIter dist_vector_begin,
-                                          std::string_view bus_name) {
+    TransportRouter::FillGraphByStopRange(const StopIter begin, const StopIter end, const DistIter dist_vector_begin,
+                                          size_t bus_id, std::string_view bus_name) {
         int stop_id = 0;
 
         for (auto stop_it = begin; stop_it != end; ++stop_it, ++stop_id) {
             graph_.AddEdge({(*stop_it)->id * 2,
                             (*stop_it)->id * 2 + 1,
                             1.0 * wait_time_});
-            edges_data_.push_back({0, (*stop_it)->stop_name});
+            edges_data_.push_back({(*stop_it)->id, (*stop_it)->stop_name, 0});
 
             if (stop_it == std::prev(end)) { break; }
 
@@ -163,7 +167,7 @@ namespace transport_catalogue {
                 graph_.AddEdge({(*stop_it)->id * 2 + 1,
                                 (*next_stop)->id * 2,
                                 1.0 * r_length / bus_velocity_});
-                edges_data_.push_back({span + 1, bus_name});
+                edges_data_.push_back({bus_id, bus_name, span + 1});
             }
         }
     }

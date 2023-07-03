@@ -21,6 +21,7 @@ message Bus {
   string name = 1;
   repeated uint32 stops = 2;
   bool is_circled = 3;
+  uint64 id = 4;
 }
 
 message AllBuses {

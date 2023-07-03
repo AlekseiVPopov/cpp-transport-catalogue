@@ -3,7 +3,7 @@
 
 namespace transport_catalogue {
 
-    void TransportCatalogue::AddStop(const InputStopInfo *stop, const std::optional<size_t> id = std::nullopt) {
+    void TransportCatalogue::AddStop(const InputStopInfo *stop, std::optional<size_t> id = std::nullopt) {
         using namespace std::string_literals;
         if (stop == nullptr) {
             throw std::runtime_error("Try to add stop with nullptr"s);
@@ -22,7 +22,7 @@ namespace transport_catalogue {
         return nullptr;
     }
 
-    const Stop *TransportCatalogue::FindStopById(const size_t id) const {
+    const Stop *TransportCatalogue::FindStopById(size_t id) const {
         const auto stop_it = std::next(stops_.begin(), id);
 
         assert(stop_it != stops_.end() && stop_it->id == id);
@@ -37,7 +37,7 @@ namespace transport_catalogue {
         return uniq_stop_names.size();
     }
 
-    void TransportCatalogue::AddBus(const InputBusInfo *bus) {
+    void TransportCatalogue::AddBus(const InputBusInfo *bus, std::optional<size_t> id = std::nullopt) {
         using namespace std::string_literals;
 
         if (bus == nullptr) {
@@ -63,7 +63,9 @@ namespace transport_catalogue {
             throw std::runtime_error("Bus "s + bus->bus_name + " is not closed"s);
         }
 
-        auto &new_bus = buses_.emplace_back(std::move(Bus{bus->bus_name, std::move(stops), 0, 0, bus->is_circled}));
+        size_t new_id = id ? *id : last_bus_id_++;
+
+        auto &new_bus = buses_.emplace_back(std::move(Bus{bus->bus_name, std::move(stops), 0, 0, bus->is_circled, new_id}));
         new_bus.stops_num = static_cast<int>(new_bus.stops.size());
         new_bus.uniq_stops_num = static_cast<int>(CountUniqStops(&new_bus));
         bus_name_to_bus_[new_bus.bus_name] = &new_bus;
@@ -79,6 +81,13 @@ namespace transport_catalogue {
             return const_cast<Bus *>(bus_name_to_bus_.at(bus_name));
         }
         return nullptr;
+    }
+
+    const Bus *TransportCatalogue::FindBusById(size_t id) const {
+        const auto bus_it = std::next(buses_.begin(), id);
+
+        assert(bus_it != buses_.end() && bus_it->id == id);
+        return &(*bus_it);
     }
 
     double TransportCatalogue::GetStopDistance(const Stop *stop1, const Stop *stop2) const {
@@ -167,7 +176,7 @@ namespace transport_catalogue {
         }
     }
 
-    std::vector<const Bus *> TransportCatalogue::GetAllBuses() {
+    std::vector<const Bus *> TransportCatalogue::GetAllBuses() const {
         std::vector<const Bus *> res;
         res.reserve(buses_.size());
         for (const auto &bus: buses_) {
@@ -194,6 +203,15 @@ namespace transport_catalogue {
         return res;
     }
 
+    std::vector<const Stop*> TransportCatalogue::GetAllStops() const {
+        std::vector<const Stop *> res;
+        res.reserve(stops_.size());
+        for (const auto &stop: stops_) {
+            res.emplace_back(&stop);
+        }
+        return res;
+    }
+
     size_t TransportCatalogue::GetLastStopId() const {
         return last_stop_id_;
     }
@@ -216,6 +234,7 @@ namespace transport_catalogue {
         stop_to_buses_.clear();
         neighbour_distance_.clear();
         last_stop_id_ = 0;
+        last_bus_id_ = 0;
     }
 
     transport_catalogue_protobuf::AllStops TransportCatalogue::SerializeStops() const {
@@ -250,6 +269,7 @@ namespace transport_catalogue {
 
             proto_bus.set_name(bus.bus_name);
             proto_bus.set_is_circled(bus.is_circled);
+            proto_bus.set_id(bus.id);
 
             auto second_bus_end = bus.is_circled ? bus.stops.end() : std::next(bus.stops.begin(),
                                                                                1 + (bus.stops.size() / 2));
@@ -278,7 +298,7 @@ namespace transport_catalogue {
             for (const auto &proto_stop_id: proto_bus.stops()) {
                 bus_info.stops.emplace_back(FindStopById(proto_stop_id)->stop_name);
             }
-            AddBus(&bus_info);
+            AddBus(&bus_info, proto_bus.id());
         }
     }
 

@@ -38,6 +38,7 @@ namespace transport_catalogue {
         int stops_num = 0;
         int uniq_stops_num = 0;
         bool is_circled = false;
+        size_t id = 0;
     };
 
     struct BusInfoResponse {

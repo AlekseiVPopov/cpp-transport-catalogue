@@ -19,15 +19,17 @@ namespace transport_catalogue {
     class TransportCatalogue {
     public:
 
-        void AddStop(const InputStopInfo *stop, const std::optional<size_t> id);
+        void AddStop(const InputStopInfo *stop, std::optional<size_t> id);
 
         const Stop *FindStop(std::string_view stop_name) const;
 
-        const Stop *FindStopById(const size_t id) const;
+        const Stop *FindStopById(size_t id) const;
 
-        void AddBus(const InputBusInfo *bus);
+        void AddBus(const InputBusInfo *bus, std::optional<size_t> id);
 
         const Bus *FindBus(std::string_view bus_name) const;
+
+        const Bus *FindBusById(size_t id) const;
 
         std::optional<BusInfoResponse> GetBusInfo(std::string_view bus_name) const;
 
@@ -41,9 +43,11 @@ namespace transport_catalogue {
 
         std::vector<int> GetBusRealDistances(const Bus *bus) const;
 
-        std::vector<const Bus *> GetAllBuses();
+        std::vector<const Bus *> GetAllBuses() const;
 
         std::vector<const Stop *> GetAllStopWBusses();
+
+        std::vector<const Stop*> GetAllStops() const;
 
         size_t GetLastStopId() const;
 
@@ -78,6 +82,7 @@ namespace transport_catalogue {
         size_t CountUniqStops(Bus *bus);
 
         size_t last_stop_id_ = 0;
+        size_t last_bus_id_ = 0;
     };
 
 

@@ -11,7 +11,8 @@ message RouteSettings {
 
 message EdgeData {
   int32 span = 1;
-  string name = 2;
+  //string name = 2;
+  uint64 id = 2;
 }
 
 message EdgesData {

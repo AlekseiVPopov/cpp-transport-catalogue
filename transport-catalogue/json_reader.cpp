@@ -215,7 +215,7 @@ namespace transport_catalogue {
         }
 
         for (const auto &bus: parsed_bus_info_deque_) {
-            db_.AddBus(&bus);
+            db_.AddBus(&bus, std::nullopt);
         }
 
         for (const auto &dist: parsed_distance_info_deque_) {
